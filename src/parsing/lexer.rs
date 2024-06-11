@@ -37,8 +37,8 @@ pub enum TokenType {
 
 #[derive(Debug, PartialEq)]
 pub struct Token {
-    token_type: TokenType,
-    value: String,
+    pub(crate) token_type: TokenType,
+    pub(crate) value: String,
 }
 
 /// Given the code, it returns a list of tokens.
