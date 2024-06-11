@@ -1,430 +1,197 @@
-use crate::parsing::lexer::TokenType::*;
+use std::fmt;
+use std::num::ParseIntError;
+use logos::{Logos, SpannedIter};
 
-#[derive(Debug, PartialEq)]
-pub enum TokenType {
-    TokNumber,     // Number
-    TokIdentifier, // Identifiers
-    TokLpar,       // (
-    TokRpar,       // )
-    TokLbrace,     // {
-    TokRbrace,     // }
-    TokLsquare,    // [
-    TokRsquare,    // ]
-    TokEquals,     // =
-    TokPlus,       // +
-    TokMinus,      // -
-    TokTimes,      // *
-    TokDivides,    // /
-    TokComma,      //- ,
-    TokSemi,       // ;
-    TokLess,       // <
-    TokGreater,    // >
-    TokLessEq,     // <=
-    TokGreaterEq,  // >=
-    TokEq,         // ==
-    TokNeq,        // !=
-    TokNot,        // logic NOT
-    TokAnd,        // logic AND
-    TokOr,         // logic OR
-    TokLet,        // "let"
-    TokIf,         // "if"
-    TokElse,       // "else"
-    TokFn,         // "fn"
-    TokReturn,     // "return"
-    TokEOF,
-    TokIllegal,
+#[derive(Default, Debug, Clone, PartialEq)]
+pub enum LexicalError {
+    InvalidInteger(ParseIntError),
+    #[default]
+    InvalidToken,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Token {
-    pub(crate) token_type: TokenType,
-    pub(crate) value: String,
-}
-
-/// Given the code, it returns a list of tokens.
-///
-/// src: source code.
-pub fn tokenize(src: &String) -> Vec<Token> {
-    let binary_operations = vec!["+", "-", "/", "*"];
-    let parenthesis = vec!["(", ")", "[", "]", "{", "}"];
-    let logical = vec!["!", "||", "&&"];
-    let comparisons = vec!["=", "<", ">", "<=", ">=", "==", "!="];
-    let keywords = vec!["let", "fn", "if", "else", "return"];
-
-    let mut tokens: Vec<Token> = Vec::new();
-    let mut chars: Vec<char> = src.chars().collect();
-    let len = chars.len();
-    let mut already_read = 0;
-
-    for mut i in 0..len {
-        if already_read > 0 {
-            already_read -= 1;
-            continue;
-        }
-
-        let curr_c = chars.get(i).unwrap();
-        let next_c = chars.get(i + 1);
-
-        // Parse number and identifiers
-        if curr_c.is_digit(10) {
-            let mut num = String::from("");
-            for j in i..len {
-                if chars.get(j).unwrap().is_digit(10) {
-                    num.push(*chars.get(j).unwrap());
-                    already_read += 1;
-                } else {
-                    already_read -= 1;
-                    break;
-                }
-            }
-            tokens.push(Token {
-                token_type: TokNumber,
-                value: num,
-            })
-        } else if curr_c.is_alphabetic() {
-            let mut ident = String::from("");
-            for j in i..len {
-                if chars.get(j).unwrap().is_alphanumeric() {
-                    ident.push(*chars.get(j).unwrap());
-                    already_read += 1;
-                } else {
-                    already_read -= 1;
-                    break;
-                }
-            }
-            if keywords.contains(&&*ident) {
-                match ident.as_str() {
-                    "let" => tokens.push(Token {
-                        token_type: TokLet,
-                        value: ident,
-                    }),
-                    "if" => tokens.push(Token {
-                        token_type: TokIf,
-                        value: ident,
-                    }),
-                    "else" => tokens.push(Token {
-                        token_type: TokElse,
-                        value: ident,
-                    }),
-                    "fn" => tokens.push(Token {
-                        token_type: TokFn,
-                        value: ident,
-                    }),
-                    "return" => tokens.push(Token {
-                        token_type: TokReturn,
-                        value: ident,
-                    }),
-                    _ => (),
-                }
-            } else {
-                tokens.push(Token {
-                    token_type: TokIdentifier,
-                    value: ident,
-                })
-            }
-        } else {
-            match curr_c {
-                ' ' | '\n' | '\t' => (),
-                '(' => tokens.push(Token {
-                    token_type: TokLpar,
-                    value: String::from(*curr_c),
-                }),
-                ')' => tokens.push(Token {
-                    token_type: TokRpar,
-                    value: String::from(*curr_c),
-                }),
-                '[' => tokens.push(Token {
-                    token_type: TokLsquare,
-                    value: String::from(*curr_c),
-                }),
-                ']' => tokens.push(Token {
-                    token_type: TokRsquare,
-                    value: String::from(*curr_c),
-                }),
-                '{' => tokens.push(Token {
-                    token_type: TokLbrace,
-                    value: String::from(*curr_c),
-                }),
-                '}' => tokens.push(Token {
-                    token_type: TokRbrace,
-                    value: String::from(*curr_c),
-                }),
-                '+' => tokens.push(Token {
-                    token_type: TokPlus,
-                    value: String::from(*curr_c),
-                }),
-                '-' => tokens.push(Token {
-                    token_type: TokMinus,
-                    value: String::from(*curr_c),
-                }),
-                '*' => tokens.push(Token {
-                    token_type: TokTimes,
-                    value: String::from(*curr_c),
-                }),
-                '/' => tokens.push(Token {
-                    token_type: TokDivides,
-                    value: String::from(*curr_c),
-                }),
-                '=' => match next_c {
-                    Some(c) => {
-                        if *c == '=' {
-                            tokens.push(Token {
-                                token_type: TokEq,
-                                value: String::from("=="),
-                            });
-                            already_read += 1;
-                        } else {
-                            tokens.push(Token {
-                                token_type: TokEquals,
-                                value: String::from(*curr_c),
-                            });
-                        }
-                    }
-                    None => {
-                        tokens.push(Token {
-                            token_type: TokEquals,
-                            value: String::from(*curr_c),
-                        });
-                    }
-                },
-                '<' => match next_c {
-                    Some(c) => {
-                        if *c == '=' {
-                            tokens.push(Token {
-                                token_type: TokLessEq,
-                                value: String::from("<="),
-                            });
-                            already_read += 1;
-                        } else {
-                            tokens.push(Token {
-                                token_type: TokLess,
-                                value: String::from(*curr_c),
-                            });
-                        }
-                    }
-                    None => {
-                        tokens.push(Token {
-                            token_type: TokLess,
-                            value: String::from(*curr_c),
-                        });
-                    }
-                },
-                '>' => match next_c {
-                    Some(c) => {
-                        if *c == '=' {
-                            tokens.push(Token {
-                                token_type: TokGreaterEq,
-                                value: String::from(">="),
-                            });
-                            already_read += 1;
-                        } else {
-                            tokens.push(Token {
-                                token_type: TokGreater,
-                                value: String::from(*curr_c),
-                            });
-                        }
-                    }
-                    None => {
-                        tokens.push(Token {
-                            token_type: TokGreater,
-                            value: String::from(*curr_c),
-                        });
-                    }
-                },
-                '!' => match next_c {
-                    Some(c) => {
-                        if *c == '=' {
-                            tokens.push(Token {
-                                token_type: TokNeq,
-                                value: String::from(*curr_c),
-                            });
-                            already_read += 1;
-                        } else {
-                            tokens.push(Token {
-                                token_type: TokNot,
-                                value: String::from(*curr_c),
-                            });
-                        }
-                    }
-                    None => {
-                        tokens.push(Token {
-                            token_type: TokNot,
-                            value: String::from(*curr_c),
-                        });
-                    }
-                },
-                '|' => match next_c {
-                    Some(c) => {
-                        if *c == '|' {
-                            tokens.push(Token {
-                                token_type: TokOr,
-                                value: String::from("||"),
-                            });
-                            already_read += 1;
-                        } else {
-                            panic!("Expected |")
-                        }
-                    }
-                    None => {
-                        panic!("Expected |")
-                    }
-                },
-                '&' => match next_c {
-                    Some(c) => {
-                        if *c == '&' {
-                            tokens.push(Token {
-                                token_type: TokAnd,
-                                value: String::from("&&"),
-                            });
-                            already_read += 1;
-                        } else {
-                            panic!("Expected &")
-                        }
-                    }
-                    None => {
-                        panic!("Expected &")
-                    }
-                },
-                ';' => tokens.push(Token {
-                    token_type: TokSemi,
-                    value: String::from(*curr_c),
-                }),
-                ',' => tokens.push(Token {
-                    token_type: TokComma,
-                    value: String::from(*curr_c),
-                }),
-                _ => panic!("Error, unexpected token -> {}", curr_c),
-            }
-        }
+impl From<ParseIntError> for LexicalError {
+    fn from(err: ParseIntError) -> Self {
+        LexicalError::InvalidInteger(err)
     }
-    tokens.push(Token {
-        token_type: TokEOF,
-        value: String::from("EOF"),
-    });
+}
 
-    return tokens;
+
+#[derive(Logos, Clone, Debug, PartialEq)]
+#[logos(skip r"[ \t\n\f]+", skip r"#.*\n?", error = LexicalError)]
+pub enum Token {
+    #[regex("[0-9][.][0-9]+", | lex | lex.slice().parse::< f64 > ().unwrap())]
+    TokFloat(f64),      // Float Number
+    #[regex("[0-9]*", | lex | lex.slice().parse::< i64 > ().unwrap())]
+    TokInt(i64),        // Integer number
+    #[regex("[a-z][a-zA-Z0-9]*", | lex | lex.slice().to_owned())]
+    TokString(String), // Identifiers
+    #[regex("true|false", | lex | lex.slice().parse::< bool > ().unwrap())]
+    TokBool(bool),    // Boolean
+    #[token("(")]
+    TokLpar,       // (
+    #[token(")")]
+    TokRpar,       // )
+    #[token("{")]
+    TokLbrace,     // {
+    #[token("}")]
+    TokRbrace,     // }
+    #[token("[")]
+    TokLsquare,    // [
+    #[token("]")]
+    TokRsquare,    // ]
+    #[token("=")]
+    TokEquals,     // =
+    #[token("+")]
+    TokPlus,       // +
+    #[token("-")]
+    TokMinus,      // -
+    #[token("*")]
+    TokTimes,      // *
+    #[token("/")]
+    TokDivide,    // /
+    #[token(",")]
+    TokComma,      //- ,
+    #[token(";")]
+    TokSemi,       // ;
+    #[token("<")]
+    TokLess,       // <
+    #[token(">")]
+    TokGreater,    // >
+    #[token("<=")]
+    TokLessEq,     // <=
+    #[token(">=")]
+    TokGreaterEq,  // >=
+    #[token("==")]
+    TokCompareEq,  // ==
+    #[token("!=")]
+    TokCompareNeq, // !=
+    #[token("!")]
+    TokNot,        // logic NOT
+    #[token("&&")]
+    TokAnd,        // logic AND
+    #[token("||")]
+    TokOr,         // logic OR
+    #[token("let")]
+    TokLet,        // "let"
+    #[token("if")]
+    TokIf,         // "if"
+    #[token("else")]
+    TokElse,       // "else"
+    #[token("fn")]
+    TokFn,         // "fn"
+    #[token("return")]
+    TokReturn,     // "return"
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+// Logos to LALRPOP
+
+pub type Spanned<Tok, Loc, Error> = Result<(Loc, Tok, Loc), Error>;
+
+pub struct Lexer<'input> {
+    token_stream: SpannedIter<'input, Token>,
+}
+
+impl<'input> Lexer<'input> {
+    pub fn new(input: &'input str) -> Self {
+        Self { token_stream: Token::lexer(input).spanned() }
+    }
+}
+
+impl<'input> Iterator for Lexer<'input> {
+    type Item = Spanned<Token, usize, LexicalError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.token_stream
+            .next()
+            .map(|(token, span)| Ok((span.start, token?, span.end)))
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::parsing::lexer::Token;
     use super::*;
 
     #[test]
     fn tokenizer_test_1() {
-        let src = String::from("let test = 120;");
+        let src: &str = "let test = 120; let test1 = 0;";
+        let mut lex = Token::lexer(&src);
 
-        let mut tokens = tokenize(&src);
-        assert_eq!(
-            Token {
-                token_type: TokEOF,
-                value: "EOF".to_string()
-            },
-            tokens.pop().unwrap()
-        );
-        assert_eq!(
-            Token {
-                token_type: TokSemi,
-                value: ";".to_string()
-            },
-            tokens.pop().unwrap()
-        );
-        assert_eq!(
-            Token {
-                token_type: TokNumber,
-                value: "120".to_string()
-            },
-            tokens.pop().unwrap()
-        );
-        assert_eq!(
-            Token {
-                token_type: TokEquals,
-                value: "=".to_string()
-            },
-            tokens.pop().unwrap()
-        );
-        assert_eq!(
-            Token {
-                token_type: TokIdentifier,
-                value: "test".to_string()
-            },
-            tokens.pop().unwrap()
-        );
-        assert_eq!(
-            Token {
-                token_type: TokLet,
-                value: "let".to_string()
-            },
-            tokens.pop().unwrap()
-        );
+        assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokString("test".to_string()))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokInt(120))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokSemi)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokString("test1".to_string()))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokInt(0))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokSemi)))
     }
 
     #[test]
     #[should_panic]
     fn tokenizer_test_2() {
-        let src = String::from("let test = 120;?");
-        let tokens = tokenize(&src);
+        let src: &str = "&|;";
+        let lex = Token::lexer(&src);
+
+        for res in lex {
+            match res {
+                Ok(_) => {}
+                Err(_) => { panic!() }
+            }
+        }
     }
 
     #[test]
-    #[should_panic]
     fn tokenizer_test_3() {
-        let src = String::from("&|");
-        let tokens = tokenize(&src);
+        let src: &str = "<= >= == != &&";
+        let mut lex = Token::lexer(&src);
+
+        assert_eq!(lex.next(), Some(Ok(Token::TokLessEq)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokGreaterEq)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokCompareEq)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokCompareNeq)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokAnd)))
     }
-    // Wrong syntax, just for testing
+
     #[test]
     fn tokenizer_test_4() {
-        let src = String::from("<= >= == ! || &&");
-        let mut tokens = tokenize(&src);
+        let src: &str = "let test = 0.123; let test1 = 0.0;";
+        let mut lex = Token::lexer(&src);
 
-        assert_eq!(
-            Token {
-                token_type: TokEOF,
-                value: "EOF".to_string()
-            },
-            tokens.pop().unwrap()
-        );
-        assert_eq!(
-            Token {
-                token_type: TokAnd,
-                value: "&&".to_string()
-            },
-            tokens.pop().unwrap()
-        );
-        assert_eq!(
-            Token {
-                token_type: TokOr,
-                value: "||".to_string()
-            },
-            tokens.pop().unwrap()
-        );
-        assert_eq!(
-            Token {
-                token_type: TokNot,
-                value: "!".to_string()
-            },
-            tokens.pop().unwrap()
-        );
-        assert_eq!(
-            Token {
-                token_type: TokEq,
-                value: "==".to_string()
-            },
-            tokens.pop().unwrap()
-        );
-        assert_eq!(
-            Token {
-                token_type: TokGreaterEq,
-                value: ">=".to_string()
-            },
-            tokens.pop().unwrap()
-        );
-        assert_eq!(
-            Token {
-                token_type: TokLessEq,
-                value: "<=".to_string()
-            },
-            tokens.pop().unwrap()
-        );
+        assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokString("test".to_string()))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokFloat(0.123))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokSemi)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokString("test1".to_string()))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokFloat(0.0))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokSemi)))
+    }
+
+    #[test]
+    fn tokenizer_test_5() {
+        let src: &str = "let test = true; let test1 = false;";
+        let mut lex = Token::lexer(&src);
+
+        assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokString("test".to_string()))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokBool(true))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokSemi)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokString("test1".to_string()))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
+        assert_eq!(lex.next(), Some(Ok(Token::TokBool(false))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokSemi)))
     }
 }

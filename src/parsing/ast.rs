@@ -1,47 +1,45 @@
-use crate::parsing::lexer::{Token};
-
-#[derive(Debug, PartialEq)]
-pub enum StatementType {
-    LetStatement,
+#[derive(Clone, Debug, PartialEq)]
+pub enum Statement {
+    VariableDeclarationStatement { name: String, value: Box<Expression> },
+    AssignmentStatement { name: String, value: Box<Expression> },
+    IfStatement { cond: Box<Expression>, then_part: Vec<Statement>, else_part: Vec<Statement> },
+    ReturnStatement { value: Box<Expression> }
 }
 
-pub struct Program {
-    pub(crate) statements: Vec<Box<dyn Statement>>
-}
-pub trait Statement: std::fmt::Debug {
-    fn show(&self);
-}
-
-// Possible statements
-/// Let statement
-#[derive(Debug, PartialEq)]
-pub struct LetStatement {
-    pub(crate) token: Token,
-    pub(crate) name: Identifier,
-    pub(crate) value: Expression,
-}
-
-impl Statement for LetStatement {
-    fn show(&self) {
-        println!("Token: {:?}, Identifier: {:?}, Expression: {:?}", self.token, self.name, self.value)
-    }
+#[derive(Clone, Debug, PartialEq)]
+pub enum Expression {
+    Float(f64),
+    Int(i64),
+    String(String),
+    Bool(bool),
+    BinaryOperation {
+        lhs: Box<Expression>,
+        operator: BinaryOperator,
+        rhs: Box<Expression>,
+    },
+    UnaryOperation {
+        operator: UnaryOperator,
+        rhs: Box<Expression>,
+    },
 }
 
-/// Return statement
-#[derive(Debug, PartialEq)]
-pub struct ReturnStatement {
-    pub(crate) token: Token,
-    pub(crate) value: Expression,
+#[derive(Clone, Debug, PartialEq)]
+pub enum BinaryOperator {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    And,
+    Or,
+    Less,
+    Greater,
+    LessEq,
+    GreaterEq,
+    Eq,
+    NotEq,
 }
 
-// Auxiliary structs
-#[derive(Debug, PartialEq)]
-pub struct Identifier {
-    pub(crate) token: Token,
-    pub(crate) value: String
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Expression {
-
+#[derive(Clone, Debug, PartialEq)]
+pub enum UnaryOperator {
+    Not,
 }
