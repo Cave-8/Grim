@@ -1,5 +1,6 @@
 use crate::parsing::lexer::{Token, LexicalError};
 use crate::parsing::ast;
+use std::any::type_name;
 
 grammar;
 
@@ -9,6 +10,7 @@ extern {
 
   enum Token {
     "identifier" => Token::TokString(<String>),
+    "string" => Token::TokString(<String>),
     "float" => Token::TokFloat(<f64>),
     "int" => Token::TokInt(<i64>),
     "bool" => Token::TokBool(<bool>),
@@ -16,6 +18,7 @@ extern {
     "else" => Token::TokElse,
     "let" => Token::TokLet,
     "fn" => Token::TokFn,
+    "while" => Token::TokWhile,
     "return" => Token::TokReturn,
     "(" => Token::TokLpar,
     ")" => Token::TokRpar,
@@ -30,6 +33,7 @@ extern {
     "/" => Token::TokDivide,
     "," => Token::TokComma,
     ";" => Token::TokSemi,
+    ":" => Token::TokColon,
     "<" => Token::TokLess,
     ">" => Token::TokGreater,
     "<=" => Token::TokLessEq,
@@ -39,6 +43,7 @@ extern {
     "!" => Token::TokNot,
     "&&" => Token::TokAnd,
     "||" => Token::TokOr,
+    "->" => Token::TokArrow
   }
 }
 
@@ -56,13 +61,25 @@ pub Statement: ast::Statement = {
     ast::Statement::AssignmentStatement { name, value}
   },
   // If statement
+  "if" <cond:Expression> "{" <then_part:Statement*> "}" => {
+    ast::Statement::IfStatement { cond, then_part }
+  },
+  // If-else statement
   "if" <cond:Expression> "{" <then_part:Statement*> "}" "else" "{" <else_part:Statement*> "}" => {
-    ast::Statement::IfStatement { cond, then_part, else_part }
+    ast::Statement::IfElseStatement { cond, then_part, else_part }
+  },
+  // If statement
+  "while" <cond:Expression> "{" <body:Statement*> "}" => {
+    ast::Statement::WhileStatement { cond, body }
+  },
+  // Function declaration -> fn dummy (x y) -> { ... }
+  "fn" <name:"identifier"> "(" <parameters:ParameterList> ")" "->" "{" <body:Statement*> "}" => {
+     ast::Statement::FunctionDeclaration { name, parameters, body }
   },
   // Return statement
   "return" <value:Expression> ";" => {
     ast::Statement::ReturnStatement { value }
-  }
+  },
 }
 
 pub Expression: Box<ast::Expression> = {
@@ -76,6 +93,13 @@ pub Expression: Box<ast::Expression> = {
           rhs
         })
   },
+  #[precedence(level="2")] #[assoc(side="left")]
+  "-" <rhs:Expression> => {
+      Box::new(ast::Expression::UnaryOperation {
+            operator: ast::UnaryOperator::Minus,
+            rhs
+          })
+    },
 
   #[precedence(level="3")] #[assoc(side="left")]
   <lhs:Expression> "*" <rhs:Expression> => {
@@ -190,5 +214,25 @@ pub Term: Box<ast::Expression> = {
   <name:"identifier"> => {
     Box::new(ast::Expression::String(name.to_string()))
   },
+  <name:"identifier"> "(" <arguments:ExpressionList> ")" => {
+    Box::new(ast::Expression::FunctionCall {
+        name, arguments
+    })
+  },
   "(" <e:Expression> ")" => e
 }
+
+// Macro for comma separated list
+Comma<T>: Vec<T> = {
+    <mut v:(<T> ",")*> <e:T?> => match e {
+        None=> v,
+        Some(e) => {
+            v.push(e);
+            v
+        }
+    }
+};
+
+pub ParameterList: Vec<String> = Comma<"identifier">;
+
+pub ExpressionList: Vec<Box<ast::Expression>> = Comma<Expression>;

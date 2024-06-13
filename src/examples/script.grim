@@ -1,0 +1,25 @@
+fn sum (x, y) -> { let a = x + y; }
+
+let a = 42;
+let b = 23 + 7 - (3 * 2);
+let c = true;
+
+b = 0;
+
+if true {
+    b = 0;
+}
+
+if 3 + 10 - 3 <= 20 {
+    b = 1;
+} else {
+    b = 0;
+}
+
+while a < 10 {
+    b = 1;
+}
+
+a = sum(10, b) - b;
+
+return true;

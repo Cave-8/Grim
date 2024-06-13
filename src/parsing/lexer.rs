@@ -53,6 +53,8 @@ pub enum Token {
     TokComma,      //- ,
     #[token(";")]
     TokSemi,       // ;
+    #[token(":")]
+    TokColon,       // ;
     #[token("<")]
     TokLess,       // <
     #[token(">")]
@@ -71,6 +73,8 @@ pub enum Token {
     TokAnd,        // logic AND
     #[token("||")]
     TokOr,         // logic OR
+    #[token("->")]
+    TokArrow,
     #[token("let")]
     TokLet,        // "let"
     #[token("if")]
@@ -79,6 +83,8 @@ pub enum Token {
     TokElse,       // "else"
     #[token("fn")]
     TokFn,         // "fn"
+    #[token("while")]
+    TokWhile,         // "fn"
     #[token("return")]
     TokReturn,     // "return"
 }
