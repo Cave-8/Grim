@@ -72,5 +72,7 @@ print ("Example");
 To view a precise management of types compatibility see expression_evaluator.rs. <br>
 In general the only casting that can happen is int -> float if, for instance, an int is summed with a float. <br>
 
-
-
+## Next steps
+Future features:
+- [ ] Function implementation
+- [ ] Fancier error messages

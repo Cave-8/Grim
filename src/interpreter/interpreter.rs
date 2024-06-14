@@ -219,7 +219,9 @@ pub fn evaluate_ast(tree: &Vec<Statement>, scope: &mut Rc<RefCell<Scope>>) -> Rc
                         Boolean(false) => {
                             break;
                         }
-                        _ => {}
+                        Int(_) => panic!("Int cannot be used as if condition"),
+                        Float(_) => panic!("Float cannot be used as if condition"),
+                        Str(_) => panic!("A string cannot be used as if condition"),
                     }
                 }
             }
