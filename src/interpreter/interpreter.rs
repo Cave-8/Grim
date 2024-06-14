@@ -1,55 +1,99 @@
+use std::cell::RefCell;
 use std::cmp::PartialEq;
-use std::collections::HashMap;
-use crate::interpreter::interpreter::TypeVal::{Boolean, Float, Int};
-use crate::parsing::ast::{BinaryOperator, Expression, Statement, UnaryOperator};
-use crate::parsing::ast::Statement::{AssignmentStatement, IfStatement, VariableDeclarationStatement};
+use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
+use crate::interpreter::expression_evaluator::evaluate_expression;
+use crate::interpreter::interpreter::TypeVal::{Boolean, Float, Int, Str};
+use crate::parsing::ast::{Statement};
+use crate::parsing::ast::Statement::{AssignmentStatement, IfElseStatement, IfStatement, PrintStatement, VariableDeclarationStatement, WhileStatement};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeVal {
     Int(i64),
     Float(f64),
     Boolean(bool),
+    Str(String),
 }
 
+/// A local scope is composed by two fields:
+///
+/// parent: It contains the reference (counted using Reference Counter) to an eventual father.
+///
+/// local_variables: it contains all the local variables bound with their value.
+///
+/// reachable_variables: it contains all the variables seen by the scope.
 #[derive(Debug, Default, Clone)]
-pub struct Frame {
-    parent: Option<Box<Frame>>,
+pub struct Scope {
+    parent: Option<Rc<RefCell<Scope>>>,
     local_variables: HashMap<String, TypeVal>,
+    reachable_variables: HashSet<String>,
 }
 
-impl Frame {
-    /// Insert value for the first time in the frame
+impl Scope {
+    /// Create new scope.
+    pub fn new(parent: Option<Rc<RefCell<Scope>>>, local_variables: HashMap<String, TypeVal>, reachable_variables: HashSet<String>) -> Self {
+        Self {
+            parent,
+            local_variables,
+            reachable_variables,
+        }
+    }
+
+    /// Insert value for the first time in the scope.
     pub fn insert_value(&mut self, variable_name: &str, value: &TypeVal) {
         if let Some(&ref value) = self.local_variables.get(variable_name) {
-            panic!("{} already defined", variable_name);
+            panic!("A variable with this name ({}) already exists and it is in scope", variable_name);
         } else {
             match value {
                 Int(x) => {
+                    if self.reachable_variables.contains(&variable_name.to_string()) {
+                        panic!("You are overshadowing ({})", variable_name)
+                    }
                     self.local_variables.insert(variable_name.to_string(), Int(x.clone()));
+                    self.reachable_variables.insert(variable_name.to_string());
                 }
                 Float(x) => {
+                    if self.reachable_variables.contains(&variable_name.to_string()) {
+                        panic!("You are overshadowing ({})", variable_name)
+                    }
                     self.local_variables.insert(variable_name.to_string(), Float(x.clone()));
+                    self.reachable_variables.insert(variable_name.to_string());
                 }
                 Boolean(x) => {
+                    if self.reachable_variables.contains(&variable_name.to_string()) {
+                        panic!("You are overshadowing ({})", variable_name)
+                    }
                     self.local_variables.insert(variable_name.to_string(), Boolean(x.clone()));
+                    self.reachable_variables.insert(variable_name.to_string());
+                }
+                Str(x) => {
+                    if self.reachable_variables.contains(&variable_name.to_string()) {
+                        panic!("You are overshadowing ({})", variable_name)
+                    }
+                    self.local_variables.insert(variable_name.to_string(), Str(x.clone()));
+                    self.reachable_variables.insert(variable_name.to_string());
                 }
             }
         }
     }
 
-    /// Get value of a variable
-    pub fn variable_value(&self, variable_name: &str) -> TypeVal {
+    /// Get value of a variable.
+    ///
+    /// If the variable is found then it is returned, if not a mutable reference to the parent is borrowed and the search recursively goes up.
+    pub fn get_variable_value(&self, variable_name: &str) -> TypeVal {
         if let Some(&ref value) = self.local_variables.get(variable_name) {
             value.clone()
         } else if let Some(parent) = self.parent.as_ref() {
-            parent.variable_value(variable_name)
+            parent.borrow_mut().get_variable_value(variable_name)
         } else {
             panic!("{} does not exist", variable_name);
         }
     }
 
-    /// Update value of a variable in the frame
-    pub fn update_value(&mut self, variable_name: &str, value: &TypeVal) {
+    /// Update value of a variable in the scope
+    ///
+    /// If the variable is found then it is updated, if not a mutable reference to the parent is borrowed and the search recursively goes up.
+    pub fn update_value(&mut self, variable_name: &str, value: &TypeVal, already_found: bool) {
         if let Some(&ref some) = self.local_variables.get(variable_name) {
             match value {
                 Int(value) => {
@@ -61,407 +105,130 @@ impl Frame {
                 Boolean(value) => {
                     self.local_variables.insert(variable_name.to_string(), Boolean(value.clone()));
                 }
+                Str(value) => {
+                    self.local_variables.insert(variable_name.to_string(), Str(value.clone()));
+                }
             }
         } else if let Some(parent) = self.parent.as_mut() {
-            parent.update_value(variable_name, &value);
+            parent.borrow_mut().update_value(variable_name, &value, already_found);
         } else {
-            panic!("{} does not exist", variable_name);
+            if !already_found {
+                panic!("{} does not exist", variable_name);
+            }
         }
+    }
+
+    /// Set parent of the given scope
+    pub fn set_parent(&mut self, parent: Rc<RefCell<Scope>>) {
+        self.parent = Some(parent);
+    }
+
+    /// Set variable reachable from self scope
+    pub fn set_reachable_variables(&mut self, reachable_variables: HashSet<String>) {
+        self.reachable_variables = reachable_variables;
     }
 }
 
+/// Start the interpreter
+pub fn boot_interpreter(tree: &Vec<Statement>) -> Rc<RefCell<Scope>> {
+    let mut main_scope = Rc::new(RefCell::new(Scope::new(Default::default(), Default::default(), Default::default())));
+    evaluate_ast(&tree, &mut main_scope)
+}
 
 /// AST evaluation
-pub fn evaluate_ast(tree: &Vec<Statement>, frame: &mut Box<Frame>) -> Box<Frame> {
+pub fn evaluate_ast(tree: &Vec<Statement>, scope: &mut Rc<RefCell<Scope>>) -> Rc<RefCell<Scope>> {
     for stmt in tree {
         match stmt {
             VariableDeclarationStatement { name, value } => {
-                let evaluated_expr = evaluate_expression(&frame, value);
-                frame.insert_value(&name, &evaluated_expr);
+                let evaluated_expr = evaluate_expression(&scope, value);
+                scope.borrow_mut().insert_value(&name, &evaluated_expr);
             }
             AssignmentStatement { name, value } => {
-                let evaluated_expr = evaluate_expression(&frame, value);
-                frame.update_value(&name, &evaluated_expr);
+                let evaluated_expr = evaluate_expression(&scope, value);
+                scope.borrow_mut().update_value(&name, &evaluated_expr, false);
             }
             IfStatement { cond, then_part } => {
-                let evaluated_expr = evaluate_expression(&frame, cond);
+                let evaluated_expr = evaluate_expression(&scope, cond);
                 match evaluated_expr {
                     Boolean(true) => {
-                        let mut local_frame = Box::new(Frame::default());
-                        local_frame.parent = Some(frame.to_owned());
-                        evaluate_ast(then_part, &mut local_frame);
-                        println!("{:#?}", local_frame);
-                        // todo() need to update parents
+
+                        // Create new local scope
+                        let mut new_scope = Rc::new(RefCell::new(Scope::new(Default::default(), Default::default(), Default::default())));
+                        // Set parent for local scope
+                        new_scope.borrow_mut().set_parent(Rc::clone(&scope));
+                        // Update reachable variables
+                        new_scope.borrow_mut().set_reachable_variables(scope.borrow().reachable_variables.clone());
+
+                        evaluate_ast(then_part, &mut new_scope);
+                        println!("{:#?}", new_scope);
                     }
                     Int(_) => panic!("Int cannot be used as if condition"),
                     Float(_) => panic!("Float cannot be used as if condition"),
                     _ => ()
                 }
             }
+            IfElseStatement { cond, then_part, else_part } => {
+                let evaluated_expr = evaluate_expression(&scope, cond);
+                match evaluated_expr {
+                    Boolean(true) => {
+
+                        // Create new local scope
+                        let mut new_scope = Rc::new(RefCell::new(Scope::new(Default::default(), Default::default(), Default::default())));
+                        // Set parent for local scope
+                        new_scope.borrow_mut().set_parent(Rc::clone(&scope));
+                        // Update reachable variables
+                        new_scope.borrow_mut().set_reachable_variables(scope.borrow().reachable_variables.clone());
+
+                        // Execute then_part
+                        evaluate_ast(then_part, &mut new_scope);
+                        println!("{:#?}", new_scope);
+                    }
+                    Boolean(false) => {
+
+                        // Create new local scope
+                        let mut new_scope = Rc::new(RefCell::new(Scope::new(Default::default(), Default::default(), Default::default())));
+                        // Set parent for local scope
+                        new_scope.borrow_mut().set_parent(Rc::clone(&scope));
+                        // Update reachable variables
+                        new_scope.borrow_mut().set_reachable_variables(scope.borrow().reachable_variables.clone());
+
+                        // Execute else_part
+                        evaluate_ast(else_part, &mut new_scope);
+                        println!("{:#?}", new_scope);
+                    }
+                    Int(_) => panic!("Int cannot be used as if condition"),
+                    Float(_) => panic!("Float cannot be used as if condition"),
+                    Str(_) => panic!("A string cannot be used as if condition"),
+                }
+            }
+            WhileStatement { cond, body } => {
+
+                // Create new local scope
+                let mut new_scope = Rc::new(RefCell::new(Scope::new(Default::default(), Default::default(), Default::default())));
+                // Set parent for local scope
+                new_scope.borrow_mut().set_parent(Rc::clone(&scope));
+                // Update reachable variables
+                new_scope.borrow_mut().set_reachable_variables(scope.borrow().reachable_variables.clone());
+
+                loop {
+                    let evaluated_expr = evaluate_expression(&scope, cond);
+                    match evaluated_expr {
+                        Boolean(true) => {
+                            evaluate_ast(&body, &mut new_scope);
+                        }
+                        Boolean(false) => {
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            PrintStatement{content} => {
+                println!("OUTPUT > {:?}", evaluate_expression(&scope, content))
+            }
             _ => { println!("{:#?}", stmt) }
         }
     }
 
-    return frame.to_owned();
-}
-
-fn evaluate_expression(frame: &Frame, expr: &Box<Expression>) -> TypeVal {
-    match expr.as_ref() {
-        Expression::Int(x) => Int(*x),
-        Expression::Float(x) => Float(*x),
-        Expression::Bool(x) => Boolean(*x),
-        Expression::BinaryOperation { lhs, operator, rhs } => {
-            match operator {
-                BinaryOperator::Add => {
-                    let left = evaluate_expression(frame, &lhs);
-                    let right = evaluate_expression(frame, &rhs);
-                    match left {
-                        Int(x) => {
-                            match right {
-                                Int(y) => Int(x + y),
-                                Float(y) => Float(x as f64 + y),
-                                Boolean(_) => panic!("Sum between incompatible types"),
-                            }
-                        }
-                        Float(x) => {
-                            match right {
-                                Int(y) => Float(x + y as f64),
-                                Float(y) => Float(x + y),
-                                Boolean(_) => panic!("Sum between incompatible types"),
-                            }
-                        }
-                        Boolean(_) => {
-                            match right {
-                                Int(_) => panic!("Sum between incompatible types"),
-                                Float(_) => panic!("Sum between incompatible types"),
-                                Boolean(_) => panic!("Sum between boolean types"),
-                            }
-                        }
-                    }
-                }
-                BinaryOperator::Sub => {
-                    let left = evaluate_expression(frame, &lhs);
-                    let right = evaluate_expression(frame, &rhs);
-                    match left {
-                        Int(x) => {
-                            match right {
-                                Int(y) => Int(x - y),
-                                Float(y) => Float(x as f64 - y),
-                                Boolean(_) => panic!("Difference between incompatible types"),
-                            }
-                        }
-                        Float(x) => {
-                            match right {
-                                Int(y) => Float(x - y as f64),
-                                Float(y) => Float(x - y),
-                                Boolean(_) => panic!("Difference between incompatible types"),
-                            }
-                        }
-                        Boolean(_) => {
-                            match right {
-                                Int(_) => panic!("Difference between incompatible types"),
-                                Float(_) => panic!("Difference between incompatible types"),
-                                Boolean(_) => panic!("Difference between boolean types"),
-                            }
-                        }
-                    }
-                }
-                BinaryOperator::Mul => {
-                    let left = evaluate_expression(frame, &lhs);
-                    let right = evaluate_expression(frame, &rhs);
-                    match left {
-                        Int(x) => {
-                            match right {
-                                Int(y) => Int(x * y),
-                                Float(y) => Float(x as f64 * y),
-                                Boolean(_y) => panic!("Product between incompatible types"),
-                            }
-                        }
-                        Float(x) => {
-                            match right {
-                                Int(y) => Float(x * y as f64),
-                                Float(y) => Float(x * y),
-                                Boolean(_) => panic!("Product between incompatible types"),
-                            }
-                        }
-                        Boolean(_) => {
-                            match right {
-                                Int(_) => panic!("Product between incompatible types"),
-                                Float(_) => panic!("Product between incompatible types"),
-                                Boolean(_) => panic!("Product between boolean types"),
-                            }
-                        }
-                    }
-                }
-                BinaryOperator::Div => {
-                    let left = evaluate_expression(frame, &lhs);
-                    let right = evaluate_expression(frame, &rhs);
-                    match left {
-                        Int(x) => {
-                            match right {
-                                Int(y) => if x % y == 0 { Int(x / y) } else { Float((x as f64) / (y as f64)) },
-                                Float(y) => Float(x as f64 / y),
-                                Boolean(_) => panic!("Division between incompatible types"),
-                            }
-                        }
-                        Float(x) => {
-                            match right {
-                                Int(y) => Float(x / y as f64),
-                                Float(y) => Float(x / y),
-                                Boolean(_) => panic!("Division between incompatible types"),
-                            }
-                        }
-                        Boolean(_) => {
-                            match right {
-                                Int(_) => panic!("Division between incompatible types"),
-                                Float(_) => panic!("Division between incompatible types"),
-                                Boolean(_) => panic!("Division between boolean types"),
-                            }
-                        }
-                    }
-                }
-                BinaryOperator::And => {
-                    let left = evaluate_expression(frame, &lhs);
-                    let right = evaluate_expression(frame, &rhs);
-                    match left {
-                        Int(_) => {
-                            match right {
-                                Int(_) => panic!("Logical AND between incompatible types"),
-                                Float(_) => panic!("Logical AND between incompatible types"),
-                                Boolean(_) => panic!("Logical AND between incompatible types"),
-                            }
-                        }
-                        Float(_) => {
-                            match right {
-                                Int(_) => panic!("Logical AND between incompatible types"),
-                                Float(_) => panic!("Logical AND between incompatible types"),
-                                Boolean(_) => panic!("Logical AND between incompatible types"),
-                            }
-                        }
-                        Boolean(x) => {
-                            match right {
-                                Int(_) => panic!("Logical AND between incompatible types"),
-                                Float(_) => panic!("Logical AND between incompatible types"),
-                                Boolean(y) => Boolean(x && y)
-                            }
-                        }
-                    }
-                }
-                BinaryOperator::Or => {
-                    let left = evaluate_expression(frame, &lhs);
-                    let right = evaluate_expression(frame, &rhs);
-                    match left {
-                        Int(_) => {
-                            match right {
-                                Int(_) => panic!("Logical OR of incompatible types"),
-                                Float(_) => panic!("Logical OR of incompatible types"),
-                                Boolean(_) => panic!("Logical OR of incompatible types"),
-                            }
-                        }
-                        Float(_) => {
-                            match right {
-                                Int(_) => panic!("Logical OR of incompatible types"),
-                                Float(_) => panic!("Logical OR of incompatible types"),
-                                Boolean(_) => panic!("Logical OR of incompatible types"),
-                            }
-                        }
-                        Boolean(x) => {
-                            match right {
-                                Int(_) => panic!("Logical OR of incompatible types"),
-                                Float(_) => panic!("Logical OR of incompatible types"),
-                                Boolean(y) => Boolean(x || y)
-                            }
-                        }
-                    }
-                }
-                BinaryOperator::Less => {
-                    let left = evaluate_expression(frame, &lhs);
-                    let right = evaluate_expression(frame, &rhs);
-                    match left {
-                        Int(x) => {
-                            match right {
-                                Int(y) => Boolean(x < y),
-                                Float(y) => Boolean((x as f64) < y),
-                                Boolean(_) => panic!("Logical LE between incompatible types"),
-                            }
-                        }
-                        Float(x) => {
-                            match right {
-                                Int(y) => Boolean(x < (y as f64)),
-                                Float(y) => Boolean(x < y),
-                                Boolean(_) => panic!("Logical LE between incompatible types"),
-                            }
-                        }
-                        Boolean(_) => {
-                            match right {
-                                Int(_) => panic!("Logical LE between incompatible types"),
-                                Float(_) => panic!("Logical LE between incompatible types"),
-                                Boolean(_) => panic!("Logical LE between incompatible types"),
-                            }
-                        }
-                    }
-                }
-                BinaryOperator::Greater => {
-                    let left = evaluate_expression(frame, &lhs);
-                    let right = evaluate_expression(frame, &rhs);
-                    match left {
-                        Int(x) => {
-                            match right {
-                                Int(y) => Boolean(x > y),
-                                Float(y) => Boolean((x as f64) > y),
-                                Boolean(_) => panic!("Logical GR between incompatible types"),
-                            }
-                        }
-                        Float(x) => {
-                            match right {
-                                Int(y) => Boolean(x > (y as f64)),
-                                Float(y) => Boolean(x > y),
-                                Boolean(_) => panic!("Logical GR between incompatible types"),
-                            }
-                        }
-                        Boolean(_) => {
-                            match right {
-                                Int(_) => panic!("Logical GR between incompatible types"),
-                                Float(_) => panic!("Logical GR between incompatible types"),
-                                Boolean(_) => panic!("Logical GR between incompatible types"),
-                            }
-                        }
-                    }
-                }
-                BinaryOperator::LessEq => {
-                    let left = evaluate_expression(frame, &lhs);
-                    let right = evaluate_expression(frame, &rhs);
-                    match left {
-                        Int(x) => {
-                            match right {
-                                Int(y) => Boolean(x <= y),
-                                Float(y) => Boolean(x as f64 <= y),
-                                Boolean(_) => panic!("Logical LEQ between incompatible types"),
-                            }
-                        }
-                        Float(x) => {
-                            match right {
-                                Int(y) => Boolean(x <= y as f64),
-                                Float(y) => Boolean(x <= y),
-                                Boolean(_) => panic!("Logical LEQ between incompatible types"),
-                            }
-                        }
-                        Boolean(_) => {
-                            match right {
-                                Int(_) => panic!("Logical LEQ between incompatible types"),
-                                Float(_) => panic!("Logical LEQ between incompatible types"),
-                                Boolean(_) => panic!("Logical LEQ between incompatible types"),
-                            }
-                        }
-                    }
-                }
-                BinaryOperator::GreaterEq => {
-                    let left = evaluate_expression(frame, &lhs);
-                    let right = evaluate_expression(frame, &rhs);
-                    match left {
-                        Int(x) => {
-                            match right {
-                                Int(y) => Boolean(x >= y),
-                                Float(y) => Boolean(x as f64 >= y),
-                                Boolean(_y) => panic!("Logical GEQ between incompatible types"),
-                            }
-                        }
-                        Float(x) => {
-                            match right {
-                                Int(y) => Boolean(x >= y as f64),
-                                Float(y) => Boolean(x >= y),
-                                Boolean(_) => panic!("Logical GEQ between incompatible types"),
-                            }
-                        }
-                        Boolean(_) => {
-                            match right {
-                                Int(_) => panic!("Logical GEQ between incompatible types"),
-                                Float(_) => panic!("Logical GEQ between incompatible types"),
-                                Boolean(_) => panic!("Logical GEQ between incompatible types"),
-                            }
-                        }
-                    }
-                }
-                BinaryOperator::Eq => {
-                    let left = evaluate_expression(frame, &lhs);
-                    let right = evaluate_expression(frame, &rhs);
-                    match left {
-                        Int(x) => {
-                            match right {
-                                Int(y) => Boolean(x == y),
-                                Float(y) => Boolean(x as f64 == y),
-                                Boolean(_) => panic!("Logical EQ between incompatible types"),
-                            }
-                        }
-                        Float(x) => {
-                            match right {
-                                Int(y) => Boolean(x == y as f64),
-                                Float(y) => Boolean(x == y),
-                                Boolean(_) => panic!("Logical EQ between incompatible types"),
-                            }
-                        }
-                        Boolean(x) => {
-                            match right {
-                                Int(_) => panic!("Logical EQ between incompatible types"),
-                                Float(_) => panic!("Logical EQ between incompatible types"),
-                                Boolean(y) => Boolean(x == y),
-                            }
-                        }
-                    }
-                }
-                BinaryOperator::NotEq => {
-                    let left = evaluate_expression(frame, &lhs);
-                    let right = evaluate_expression(frame, &rhs);
-                    match left {
-                        Int(x) => {
-                            match right {
-                                Int(y) => Boolean(x != y),
-                                Float(y) => Boolean(x as f64 != y),
-                                Boolean(_) => panic!("Logical NEQ between incompatible types"),
-                            }
-                        }
-                        Float(x) => {
-                            match right {
-                                Int(y) => Boolean(x != y as f64),
-                                Float(y) => Boolean(x != y),
-                                Boolean(_) => panic!("Logical NEQ between incompatible types"),
-                            }
-                        }
-                        Boolean(x) => {
-                            match right {
-                                Int(_) => panic!("Logical NEQ between incompatible types"),
-                                Float(_) => panic!("Logical NEQ between incompatible types"),
-                                Boolean(y) => Boolean(x != y)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        Expression::UnaryOperation { operator, rhs } => {
-            match operator {
-                UnaryOperator::Minus => {
-                    let right = evaluate_expression(frame, &rhs);
-                    match right {
-                        Int(x) => Int(-x),
-                        Float(x) => Float(-x),
-                        Boolean(_) => panic!("Minus boolean is not supported"),
-                    }
-                }
-                UnaryOperator::Not => {
-                    let right = evaluate_expression(frame, &rhs);
-                    match right {
-                        Int(_) => panic!("Not int is not supported"),
-                        Float(_) => panic!("Not float is not supported"),
-                        Boolean(x) => if x { Boolean(false) } else { Boolean(true) }
-                    }
-                }
-            }
-        }
-        Expression::String(variable) => {
-            let var = frame.variable_value(variable.as_str());
-            var
-        }
-        _ => panic!("Unknown expression"),
-    }
+    return scope.to_owned();
 }

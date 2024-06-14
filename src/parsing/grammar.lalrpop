@@ -9,7 +9,7 @@ extern {
   type Error = LexicalError;
 
   enum Token {
-    "identifier" => Token::TokString(<String>),
+    "identifier" => Token::TokIdentifier(<String>),
     "string" => Token::TokString(<String>),
     "float" => Token::TokFloat(<f64>),
     "int" => Token::TokInt(<i64>),
@@ -19,6 +19,7 @@ extern {
     "let" => Token::TokLet,
     "fn" => Token::TokFn,
     "while" => Token::TokWhile,
+    "print" => Token::TokPrint,
     "return" => Token::TokReturn,
     "(" => Token::TokLpar,
     ")" => Token::TokRpar,
@@ -75,6 +76,10 @@ pub Statement: ast::Statement = {
   // Function declaration -> fn dummy (x y) -> { ... }
   "fn" <name:"identifier"> "(" <parameters:ParameterList> ")" "->" "{" <body:Statement*> "}" => {
      ast::Statement::FunctionDeclaration { name, parameters, body }
+  },
+  // Print statement (expression/variable)
+  "print" "("<content:Expression>")" ";" => {
+     ast::Statement::PrintStatement { content }
   },
   // Return statement
   "return" <value:Expression> ";" => {
@@ -212,7 +217,10 @@ pub Term: Box<ast::Expression> = {
     Box::new(ast::Expression::Bool(val))
   },
   <name:"identifier"> => {
-    Box::new(ast::Expression::String(name.to_string()))
+    Box::new(ast::Expression::Identifier(name.to_string()))
+  },
+  <name:"string"> => {
+      Box::new(ast::Expression::Str(name.to_string()))
   },
   <name:"identifier"> "(" <arguments:ExpressionList> ")" => {
     Box::new(ast::Expression::FunctionCall {

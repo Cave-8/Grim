@@ -24,7 +24,9 @@ pub enum Token {
     #[regex("[0-9]*", | lex | lex.slice().parse::< i64 > ().unwrap())]
     TokInt(i64),        // Integer number
     #[regex("[a-z][a-zA-Z0-9]*", | lex | lex.slice().to_owned())]
-    TokString(String), // Identifiers
+    TokIdentifier(String), // Identifiers
+    #[regex("[\"][a-zA-Z0-9]*[\"]", | lex | lex.slice().to_owned())]
+    TokString(String), // String
     #[regex("true|false", | lex | lex.slice().parse::< bool > ().unwrap())]
     TokBool(bool),    // Boolean
     #[token("(")]
@@ -87,6 +89,8 @@ pub enum Token {
     TokWhile,         // "fn"
     #[token("return")]
     TokReturn,     // "return"
+    #[token("print")]
+    TokPrint,   // "print"
 }
 
 impl fmt::Display for Token {
@@ -130,12 +134,12 @@ mod tests {
         let mut lex = Token::lexer(&src);
 
         assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
-        assert_eq!(lex.next(), Some(Ok(Token::TokString("test".to_string()))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokIdentifier("test".to_string()))));
         assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
         assert_eq!(lex.next(), Some(Ok(Token::TokInt(120))));
         assert_eq!(lex.next(), Some(Ok(Token::TokSemi)));
         assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
-        assert_eq!(lex.next(), Some(Ok(Token::TokString("test1".to_string()))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokIdentifier("test1".to_string()))));
         assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
         assert_eq!(lex.next(), Some(Ok(Token::TokInt(0))));
         assert_eq!(lex.next(), Some(Ok(Token::TokSemi)))
@@ -173,12 +177,12 @@ mod tests {
         let mut lex = Token::lexer(&src);
 
         assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
-        assert_eq!(lex.next(), Some(Ok(Token::TokString("test".to_string()))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokIdentifier("test".to_string()))));
         assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
         assert_eq!(lex.next(), Some(Ok(Token::TokFloat(0.123))));
         assert_eq!(lex.next(), Some(Ok(Token::TokSemi)));
         assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
-        assert_eq!(lex.next(), Some(Ok(Token::TokString("test1".to_string()))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokIdentifier("test1".to_string()))));
         assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
         assert_eq!(lex.next(), Some(Ok(Token::TokFloat(0.0))));
         assert_eq!(lex.next(), Some(Ok(Token::TokSemi)))
@@ -190,12 +194,12 @@ mod tests {
         let mut lex = Token::lexer(&src);
 
         assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
-        assert_eq!(lex.next(), Some(Ok(Token::TokString("test".to_string()))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokIdentifier("test".to_string()))));
         assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
         assert_eq!(lex.next(), Some(Ok(Token::TokBool(true))));
         assert_eq!(lex.next(), Some(Ok(Token::TokSemi)));
         assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
-        assert_eq!(lex.next(), Some(Ok(Token::TokString("test1".to_string()))));
+        assert_eq!(lex.next(), Some(Ok(Token::TokIdentifier("test1".to_string()))));
         assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
         assert_eq!(lex.next(), Some(Ok(Token::TokBool(false))));
         assert_eq!(lex.next(), Some(Ok(Token::TokSemi)))
