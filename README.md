@@ -1,5 +1,5 @@
 # Grim
-Project Grim.
+Project Grim, a small interpreted and imperative language.
 
 # Syntax
 ## Possible statements
