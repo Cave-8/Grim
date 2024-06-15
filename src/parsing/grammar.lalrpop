@@ -32,6 +32,7 @@ extern {
     "-" => Token::TokMinus,
     "*" => Token::TokTimes,
     "/" => Token::TokDivide,
+    "%" => Token::TokModulo,
     "," => Token::TokComma,
     ";" => Token::TokSemi,
     ":" => Token::TokColon,
@@ -73,7 +74,7 @@ pub Statement: ast::Statement = {
   "while" <cond:Expression> "{" <body:Statement*> "}" => {
     ast::Statement::WhileStatement { cond, body }
   },
-  // Function declaration -> fn dummy (x y) -> { ... }
+  // Function declaration -> fn dummy (x, y) -> { ... }
   "fn" <name:"identifier"> "(" <parameters:ParameterList> ")" "->" "{" <body:Statement*> "}" => {
      ast::Statement::FunctionDeclaration { name, parameters, body }
   },
@@ -122,6 +123,14 @@ pub Expression: Box<ast::Expression> = {
       rhs
     })
   },
+  #[precedence(level="3")] #[assoc(side="left")]
+   <lhs:Expression> "%" <rhs:Expression> => {
+     Box::new(ast::Expression::BinaryOperation {
+       lhs,
+       operator: ast::BinaryOperator::Mod,
+       rhs
+     })
+   },
   #[precedence(level="3")] #[assoc(side="left")]
   <lhs:Expression> "&&" <rhs:Expression> => {
     Box::new(ast::Expression::BinaryOperation {
@@ -192,7 +201,7 @@ pub Expression: Box<ast::Expression> = {
     <lhs:Expression> "==" <rhs:Expression> => {
       Box::new(ast::Expression::BinaryOperation {
             lhs,
-            operator: ast::BinaryOperator::Eq,
+            operator: ast::BinaryOperator::CompareEq,
             rhs
         })
    },
@@ -200,7 +209,7 @@ pub Expression: Box<ast::Expression> = {
    <lhs:Expression> "!=" <rhs:Expression> => {
       Box::new(ast::Expression::BinaryOperation {
             lhs,
-            operator: ast::BinaryOperator::NotEq,
+            operator: ast::BinaryOperator::CompareNeq,
             rhs
         })
    },

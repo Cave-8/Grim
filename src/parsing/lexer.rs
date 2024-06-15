@@ -51,6 +51,8 @@ pub enum Token {
     TokTimes,      // *
     #[token("/")]
     TokDivide,    // /
+    #[token("%")]
+    TokModulo,      // %
     #[token(",")]
     TokComma,      //- ,
     #[token(";")]

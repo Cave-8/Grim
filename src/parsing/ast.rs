@@ -49,14 +49,15 @@ pub enum BinaryOperator {
     Sub,
     Mul,
     Div,
+    Mod,
     And,
     Or,
     Less,
     Greater,
     LessEq,
     GreaterEq,
-    Eq,
-    NotEq,
+    CompareEq,
+    CompareNeq,
 }
 
 #[derive(Clone, Debug, PartialEq)]

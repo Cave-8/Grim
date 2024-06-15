@@ -1,6 +1,7 @@
 use std::cell::RefCell;
+use std::collections::HashSet;
 use std::rc::Rc;
-use crate::interpreter::interpreter::{Scope, TypeVal};
+use crate::interpreter::interpreter::{evaluate_ast, Scope, TypeVal};
 use crate::interpreter::interpreter::TypeVal::{Boolean, Float, Int, Str};
 use crate::parsing::ast::{BinaryOperator, Expression, UnaryOperator};
 
@@ -40,6 +41,25 @@ pub fn evaluate_expression(scope: &&mut Rc<RefCell<Scope>>, expr: &Box<Expressio
             let var = scope.borrow().get_variable_value(variable.as_str());
             var
         }
+        Expression::FunctionCall { name, arguments } => {
+            let (fun_args, fun_body) = scope.borrow().get_function_info(name);
+            let mut fun_scope = Rc::new(RefCell::new(Scope::default()));
+
+            // Bind each argument with its value
+            fun_args.iter()
+                .zip(arguments.iter())
+                .for_each(|(x, y)| {
+                    let eval_exp = evaluate_expression(scope, y);
+                    fun_scope.borrow_mut().local_variables.insert(x.clone(), eval_exp);
+                });
+
+            // Evaluate function scope
+            let evaluated_function = evaluate_ast(&fun_body, &mut fun_scope);
+            // Get result
+            let borrow_scope = evaluated_function.borrow();
+            let result = borrow_scope.local_variables.get("return");
+            result.unwrap().clone()
+        }
         _ => panic!("Unknown expression"),
     }
 }
@@ -47,7 +67,7 @@ pub fn evaluate_expression(scope: &&mut Rc<RefCell<Scope>>, expr: &Box<Expressio
 /// Evaluator of binary operations
 pub fn bin_op_evaluator(scope: &&mut Rc<RefCell<Scope>>, lhs: &Box<Expression>, operator: &BinaryOperator, rhs: &Box<Expression>) -> TypeVal {
     match operator {
-        BinaryOperator::Add | BinaryOperator::Sub | BinaryOperator::Mul | BinaryOperator::Div => {
+        BinaryOperator::Add | BinaryOperator::Sub | BinaryOperator::Mul | BinaryOperator::Div | BinaryOperator::Mod => {
             bin_op_arithmetic_evaluator(scope, lhs, operator, rhs)
         }
         _ => bin_op_logic_evaluator(scope, lhs, operator, rhs),
@@ -205,6 +225,44 @@ pub fn bin_op_arithmetic_evaluator(scope: &&mut Rc<RefCell<Scope>>, lhs: &Box<Ex
                         Float(_) => panic!("Division between incompatible types"),
                         Boolean(_) => panic!("Division between boolean types"),
                         Str(_) => panic!("Division between incompatible types"),
+                    }
+                }
+            }
+        }
+        BinaryOperator::Mod => {
+            let left = evaluate_expression(scope, &lhs);
+            let right = evaluate_expression(scope, &rhs);
+            match left {
+                Int(x) => {
+                    match right {
+                        Int(y) => Int(x % y),
+                        Float(_) => panic!("Modulo between float is not supported"),
+                        Boolean(_) => panic!("Modulo between incompatible types"),
+                        Str(_) => panic!("Modulo between incompatible types"),
+                    }
+                }
+                Float(x) => {
+                    match right {
+                        Int(_) => panic!("Modulo between incompatible types"),
+                        Float(_) => panic!("Modulo between incompatible types"),
+                        Boolean(_) => panic!("Modulo between incompatible types"),
+                        Str(_) => panic!("Modulo between incompatible types"),
+                    }
+                }
+                Boolean(_) => {
+                    match right {
+                        Int(_) => panic!("Modulo between incompatible types"),
+                        Float(_) => panic!("Modulo between incompatible types"),
+                        Boolean(_) => panic!("Modulo between incompatible types"),
+                        Str(_) => panic!("Modulo between incompatible types"),
+                    }
+                }
+                Str(_) => {
+                    match right {
+                        Int(_) => panic!("Modulo between incompatible types"),
+                        Float(_) => panic!("Modulo between incompatible types"),
+                        Boolean(_) => panic!("Modulo between incompatible types"),
+                        Str(_) => panic!("Modulo between incompatible types"),
                     }
                 }
             }
@@ -444,7 +502,7 @@ pub fn bin_op_logic_evaluator(scope: &&mut Rc<RefCell<Scope>>, lhs: &Box<Express
                 }
             }
         }
-        BinaryOperator::Eq => {
+        BinaryOperator::CompareEq => {
             let left = evaluate_expression(scope, &lhs);
             let right = evaluate_expression(scope, &rhs);
             match left {
@@ -482,7 +540,7 @@ pub fn bin_op_logic_evaluator(scope: &&mut Rc<RefCell<Scope>>, lhs: &Box<Express
                 }
             }
         }
-        BinaryOperator::NotEq => {
+        BinaryOperator::CompareNeq => {
             let left = evaluate_expression(scope, &lhs);
             let right = evaluate_expression(scope, &rhs);
             match left {
@@ -520,6 +578,6 @@ pub fn bin_op_logic_evaluator(scope: &&mut Rc<RefCell<Scope>>, lhs: &Box<Express
                 }
             }
         }
-        _ => panic!("Unrecognized logic binary expression"),
+        _ => panic!("Unrecognized logic binary expression -> {:?}", operator),
     }
 }

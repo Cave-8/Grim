@@ -21,6 +21,7 @@ let e = "Test";
 > A block is defined by:
 > - ```if```/```if-else```,
 > - ```while```
+> - ```function call```
 > 
 > A block can see every variable declared in the father blocks, father blocks cannot see locally declared variables. <br>
 > Variables overshadowing is currently not supported.
@@ -67,12 +68,33 @@ let a = "test";
 print (a);
 print ("Example");
 ```
+### Function declaration and call
+A function is declared with the following syntax:
+```
+fn fun_name (arg1, arg2) -> { return arg1 + arg2; }
+```
+A function must end with an explicit return. <br>
+A function can be called simply by:
+```
+let a = 0;
+let b = 1;
+let c = fun_name(a, b);
+```
+Pass is only by value.
 
 ## Type management
 To view a precise management of types compatibility see expression_evaluator.rs. <br>
 In general the only casting that can happen is int -> float if, for instance, an int is summed with a float. <br>
 
-## Next steps
+# Run the language
+You need Rust and Cargo installed. <br>
+To run, while in the terminal:
+```
+cargo run -- path_to_grim_script
+```
+
+# Next steps
 Future features:
-- [ ] Function implementation
+- [ ] Lambda functions
+- [ ] REPL
 - [ ] Fancier error messages
