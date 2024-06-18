@@ -9,90 +9,84 @@ pub enum LexicalError {
     InvalidToken,
 }
 
-impl From<ParseIntError> for LexicalError {
-    fn from(err: ParseIntError) -> Self {
-        LexicalError::InvalidInteger(err)
-    }
-}
-
-
+/// Possible tokens that can be read.
 #[derive(Logos, Clone, Debug, PartialEq)]
 #[logos(skip r"[ \t\n\f]+", skip r"#.*\n?", error = LexicalError)]
 pub enum Token {
     #[regex("[0-9][.][0-9]+", | lex | lex.slice().parse::< f64 > ().unwrap())]
-    TokFloat(f64),      // Float Number
+    TokFloat(f64),
     #[regex("[0-9]*", | lex | lex.slice().parse::< i64 > ().unwrap())]
-    TokInt(i64),        // Integer number
+    TokInt(i64),
     #[regex("[a-z][a-zA-Z0-9]*", | lex | lex.slice().to_owned())]
-    TokIdentifier(String), // Identifiers
+    TokIdentifier(String),
     #[regex("[\"][a-zA-Z0-9]*[\"]", | lex | lex.slice().to_owned())]
-    TokString(String), // String
+    TokString(String),
     #[regex("true|false", | lex | lex.slice().parse::< bool > ().unwrap())]
-    TokBool(bool),    // Boolean
+    TokBool(bool),
     #[token("(")]
-    TokLpar,       // (
+    TokLpar,
     #[token(")")]
-    TokRpar,       // )
+    TokRpar,
     #[token("{")]
-    TokLbrace,     // {
+    TokLbrace,
     #[token("}")]
-    TokRbrace,     // }
+    TokRbrace,
     #[token("[")]
-    TokLsquare,    // [
+    TokLsquare,
     #[token("]")]
-    TokRsquare,    // ]
+    TokRsquare,
     #[token("=")]
-    TokEquals,     // =
+    TokEquals,
     #[token("+")]
-    TokPlus,       // +
+    TokPlus,
     #[token("-")]
-    TokMinus,      // -
+    TokMinus,
     #[token("*")]
-    TokTimes,      // *
+    TokTimes,
     #[token("/")]
-    TokDivide,    // /
+    TokDivide,
     #[token("%")]
-    TokModulo,      // %
+    TokModulo,
     #[token(",")]
-    TokComma,      //- ,
+    TokComma,
     #[token(";")]
-    TokSemi,       // ;
+    TokSemi,
     #[token(":")]
-    TokColon,       // ;
+    TokColon,
     #[token("<")]
-    TokLess,       // <
+    TokLess,
     #[token(">")]
-    TokGreater,    // >
+    TokGreater,
     #[token("<=")]
-    TokLessEq,     // <=
+    TokLessEq,
     #[token(">=")]
-    TokGreaterEq,  // >=
+    TokGreaterEq,
     #[token("==")]
-    TokCompareEq,  // ==
+    TokCompareEq,
     #[token("!=")]
-    TokCompareNeq, // !=
+    TokCompareNeq,
     #[token("!")]
-    TokNot,        // logic NOT
+    TokNot,
     #[token("&&")]
-    TokAnd,        // logic AND
+    TokAnd,
     #[token("||")]
-    TokOr,         // logic OR
+    TokOr,
     #[token("->")]
     TokArrow,
     #[token("let")]
-    TokLet,        // "let"
+    TokLet,
     #[token("if")]
-    TokIf,         // "if"
+    TokIf,
     #[token("else")]
-    TokElse,       // "else"
+    TokElse,
     #[token("fn")]
-    TokFn,         // "fn"
+    TokFn,
     #[token("while")]
-    TokWhile,         // "fn"
+    TokWhile,
     #[token("return")]
-    TokReturn,     // "return"
+    TokReturn,
     #[token("print")]
-    TokPrint,   // "print"
+    TokPrint,
 }
 
 impl fmt::Display for Token {

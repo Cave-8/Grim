@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::cmp::PartialEq;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use colored::{Colorize};
 use crate::interpreter::expression_evaluator::evaluate_expression;
 use crate::interpreter::interpreter::TypeVal::{Boolean, Float, Int, Str};
 use crate::parsing::ast::{Statement};
@@ -109,7 +110,7 @@ impl Scope {
     /// Update value of a variable in the scope
     ///
     /// If the variable is found then it is updated, if not a mutable reference to the parent is borrowed and the search recursively goes up.
-    pub fn update_value(&mut self, variable_name: &str, value: &TypeVal, already_found: bool) {
+    pub fn update_value(&mut self, variable_name: &str, value: &TypeVal) -> Result<String, String>{
         if let Some(&ref _some) = self.local_variables.get(variable_name) {
             match value {
                 Int(value) => {
@@ -126,12 +127,11 @@ impl Scope {
                 }
             }
         } else if let Some(parent) = self.parent.as_mut() {
-            parent.borrow_mut().update_value(variable_name, &value, already_found);
+            parent.borrow_mut().update_value(variable_name, &value);
         } else {
-            if !already_found {
-                panic!("{} does not exist", variable_name);
-            }
+            return Err(format!("{} does not exist", variable_name));
         }
+        Ok("Correct assignment".to_string())
     }
 
     /// Set parent of the given scope
@@ -151,27 +151,36 @@ impl Scope {
 }
 
 /// Start the interpreter
-pub fn boot_interpreter(tree: &Vec<Statement>) -> Rc<RefCell<Scope>> {
+pub fn boot_interpreter(tree: &Vec<Statement>) -> Result<Rc<RefCell<Scope>>, String> {
     let mut main_scope = Rc::new(RefCell::new(Scope::default()));
     evaluate_ast(&tree, &mut main_scope)
 }
 
 /// AST evaluation
-pub fn evaluate_ast(tree: &Vec<Statement>, scope: &mut Rc<RefCell<Scope>>) -> Rc<RefCell<Scope>> {
+pub fn evaluate_ast(tree: &Vec<Statement>, scope: &mut Rc<RefCell<Scope>>) -> Result<Rc<RefCell<Scope>>, String> {
     for stmt in tree {
         match stmt {
             VariableDeclarationStatement { name, value } => {
-                let evaluated_expr = evaluate_expression(&scope, value);
-                scope.borrow_mut().insert_value(&name, &evaluated_expr);
+                match evaluate_expression(&scope, value) {
+                    Ok(evaluated_expr) => scope.borrow_mut().insert_value(&name, &evaluated_expr),
+                    Err(err) => return Err(format! {"Error during variable declaration\n{}\n", err}),
+                }
             }
             AssignmentStatement { name, value } => {
-                let evaluated_expr = evaluate_expression(&scope, value);
-                scope.borrow_mut().update_value(&name, &evaluated_expr, false);
+                match evaluate_expression(&scope, value) {
+                    Ok(evaluated_expr) => {
+                        match scope.borrow_mut().update_value(&name, &evaluated_expr) {
+                            Ok(_) => (),
+                            Err(err) => return Err(format! {"Error during variable assignment\n{}\n", err}),
+                        }
+                    }
+                    Err(err) => return Err(format! {"Error during variable assignment\n{}\n", err}),
+                }
             }
             IfStatement { cond, then_part } => {
                 let evaluated_expr = evaluate_expression(&scope, cond);
                 match evaluated_expr {
-                    Boolean(true) => {
+                    Ok(Boolean(true)) => {
 
                         // Create new local scope
                         let mut new_scope = Rc::new(RefCell::new(Scope::default()));
@@ -183,17 +192,22 @@ pub fn evaluate_ast(tree: &Vec<Statement>, scope: &mut Rc<RefCell<Scope>>) -> Rc
                         new_scope.borrow_mut().set_reachable_functions(scope.borrow().reachable_functions.clone());
 
                         // Execute then_part
-                        evaluate_ast(then_part, &mut new_scope);
+                        match evaluate_ast(then_part, &mut new_scope) {
+                            Ok(_) => (),
+                            Err(err) => return Err(format! {"Error during if evaluation\n{}\n", err}),
+                        }
                     }
-                    Int(_) => panic!("Int cannot be used as if condition"),
-                    Float(_) => panic!("Float cannot be used as if condition"),
-                    _ => ()
+                    Ok(Int(_)) => return Err("Int cannot be used as if condition".red().to_string()),
+                    Ok(Float(_)) => return Err("Float cannot be used as if condition".red().to_string()),
+                    Ok(Str(_)) => return Err("Str cannot be used as if condition".red().to_string()),
+                    Err(err) => return Err(format! {"Error during if evaluation\n{}\n", err}),
+                    _ => {}
                 }
             }
             IfElseStatement { cond, then_part, else_part } => {
                 let evaluated_expr = evaluate_expression(&scope, cond);
                 match evaluated_expr {
-                    Boolean(true) => {
+                    Ok(Boolean(true)) => {
 
                         // Create new local scope
                         let mut new_scope = Rc::new(RefCell::new(Scope::default()));
@@ -205,9 +219,12 @@ pub fn evaluate_ast(tree: &Vec<Statement>, scope: &mut Rc<RefCell<Scope>>) -> Rc
                         new_scope.borrow_mut().set_reachable_functions(scope.borrow().reachable_functions.clone());
 
                         // Execute then_part
-                        evaluate_ast(then_part, &mut new_scope);
+                        match evaluate_ast(then_part, &mut new_scope) {
+                            Ok(_) => (),
+                            Err(err) => return Err(format! {"Error during if-else evaluation\n{}\n", err}),
+                        }
                     }
-                    Boolean(false) => {
+                    Ok(Boolean(false)) => {
 
                         // Create new local scope
                         let mut new_scope = Rc::new(RefCell::new(Scope::default()));
@@ -219,11 +236,15 @@ pub fn evaluate_ast(tree: &Vec<Statement>, scope: &mut Rc<RefCell<Scope>>) -> Rc
                         new_scope.borrow_mut().set_reachable_functions(scope.borrow().reachable_functions.clone());
 
                         // Execute else_part
-                        evaluate_ast(else_part, &mut new_scope);
+                        match evaluate_ast(else_part, &mut new_scope) {
+                            Ok(_) => (),
+                            Err(err) => return Err(format! {"Error during if-else evaluation\n{}\n", err}),
+                        }
                     }
-                    Int(_) => panic!("Int cannot be used as if condition"),
-                    Float(_) => panic!("Float cannot be used as if condition"),
-                    Str(_) => panic!("A string cannot be used as if condition"),
+                    Ok(Int(_)) => return Err("Int cannot be used as if condition".red().to_string()),
+                    Ok(Float(_)) => return Err("Float cannot be used as if condition".red().to_string()),
+                    Ok(Str(_)) => return Err("Str cannot be used as if condition".red().to_string()),
+                    Err(err) => return Err(format! {"Error during if-else evaluation\n{}\n", err}),
                 }
             }
             WhileStatement { cond, body } => {
@@ -240,15 +261,19 @@ pub fn evaluate_ast(tree: &Vec<Statement>, scope: &mut Rc<RefCell<Scope>>) -> Rc
                 loop {
                     let evaluated_expr = evaluate_expression(&scope, cond);
                     match evaluated_expr {
-                        Boolean(true) => {
-                            evaluate_ast(&body, &mut new_scope);
+                        Ok(Boolean(true)) => {
+                            match evaluate_ast(body, &mut new_scope) {
+                                Ok(_) => (),
+                                Err(err) => return Err(format! {"Error during while evaluation\n{}\n", err}),
+                            }
                         }
-                        Boolean(false) => {
+                        Ok(Boolean(false)) => {
                             break;
                         }
-                        Int(_) => panic!("Int cannot be used as if condition"),
-                        Float(_) => panic!("Float cannot be used as if condition"),
-                        Str(_) => panic!("A string cannot be used as if condition"),
+                        Ok(Int(_)) => return Err("Int cannot be used as if condition".red().to_string()),
+                        Ok(Float(_)) => return Err("Float cannot be used as if condition".red().to_string()),
+                        Ok(Str(_)) => return Err("Str cannot be used as if condition".red().to_string()),
+                        Err(err) => return Err(format! {"Error during while evaluation\n{}\n", err}),
                     }
                 }
             }
@@ -257,17 +282,21 @@ pub fn evaluate_ast(tree: &Vec<Statement>, scope: &mut Rc<RefCell<Scope>>) -> Rc
             }
 
             ReturnStatement { value } => {
-                let res = evaluate_expression(&scope, value);
-                scope.borrow_mut().local_variables.insert("return".to_string(), res);
-                return scope.to_owned();
+                match evaluate_expression(&scope, value) {
+                    Ok(res) => scope.borrow_mut().local_variables.insert("return".to_string(), res),
+                    Err(err) => return Err(format! {"Error during return statement\n{}\n", err}),
+                };
+                return Ok(scope.to_owned());
             }
 
             PrintStatement{content} => {
-                println!("OUTPUT > {:?}", evaluate_expression(&scope, content))
+                match evaluate_expression(&scope, content) {
+                    Ok(x) => println!("OUTPUT > {:?}", x),
+                    Err(x) => return Err(x)
+                }
             }
             _ => { println!("{:#?}", stmt) }
         }
     }
-
-    return scope.to_owned();
+    return Ok(scope.to_owned());
 }

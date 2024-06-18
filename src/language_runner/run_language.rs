@@ -8,7 +8,7 @@ pub fn run_program (src: &String) {
     let lexer = Lexer::new(src.as_str());
     let parser = ProgramParser::new();
     let ast = parser.parse(lexer).unwrap();
-    let main_frame = boot_interpreter(&ast);
+    let _ = boot_interpreter(&ast);
 
     println!("\nGoodbye =)");
 }

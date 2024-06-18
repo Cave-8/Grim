@@ -1,3 +1,4 @@
+/// Range of possible statements
 #[derive(Clone, Debug, PartialEq)]
 pub enum Statement {
     ///////////////////////////
@@ -21,6 +22,7 @@ pub enum Statement {
     PrintStatement { content: Box<Expression> },
 }
 
+/// Range of possible expressions.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Expression {
     Float(f64),
@@ -43,6 +45,7 @@ pub enum Expression {
     },
 }
 
+/// Range of possible binary operators.
 #[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOperator {
     Add,
@@ -60,6 +63,7 @@ pub enum BinaryOperator {
     CompareNeq,
 }
 
+/// Range of possible unitary operator.
 #[derive(Clone, Debug, PartialEq)]
 pub enum UnaryOperator {
     Not,

@@ -1,7 +1,5 @@
-use std::env;
 use std::fs::read_to_string;
-use crate::interpreter::interpreter::boot_interpreter;
-use crate::language_runner::run_language::run_program;
+use crate::interpreter::interpreter::{boot_interpreter};
 use crate::parsing::grammar::ProgramParser;
 use crate::parsing::lexer::Lexer;
 
@@ -11,12 +9,15 @@ mod language_runner;
 
 fn main()
 {
-    let binding = read_to_string("src/examples/script.grim").unwrap();
+    let binding = read_to_string("src/examples/scope.grim").unwrap();
     let src = binding.as_str();
     let lexer = Lexer::new(src);
     let parser = ProgramParser::new();
     let ast = parser.parse(lexer).unwrap();
-    let main_frame = boot_interpreter(&ast);
+    match boot_interpreter(&ast) {
+        Ok(_) => (),
+        Err(x) => println!("{}", x),
+    }
 
     //
     //let args: Vec<String> = env::args().collect();
