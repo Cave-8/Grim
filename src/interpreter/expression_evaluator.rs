@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::iter::zip;
 use std::rc::Rc;
 use crate::interpreter::interpreter::{evaluate_ast, Scope, TypeVal};
 use crate::interpreter::interpreter::TypeVal::{Boolean, Float, Int, Str};
@@ -46,21 +47,14 @@ pub fn evaluate_expression(scope: &&mut Rc<RefCell<Scope>>, expr: &Box<Expressio
         Expression::FunctionCall { name, arguments } => {
             let (fun_args, fun_body) = scope.borrow().get_function_info(name);
             let mut fun_scope = Rc::new(RefCell::new(Scope::default()));
-            let mut errors = false;
+            fun_scope.borrow_mut().insert_function(name, &fun_args, &fun_body);
 
             // Bind each argument with its value
-            fun_args.iter()
-                .zip(arguments.iter())
-                .for_each(|(x, y)| {
-                    match evaluate_expression(scope, y) {
-                        Ok(eval_exp) => { fun_scope.borrow_mut().local_variables.insert(x.clone(), eval_exp); }
-                        Err(_) => errors = true,
-                    }
-                });
-
-            // Return after errors
-            if errors {
-                return Err("Error during function call\n".to_string());
+            for (f_args, args) in zip(fun_args, arguments) {
+                match evaluate_expression(scope, args) {
+                    Ok(eval_exp) => { fun_scope.borrow_mut().local_variables.insert(f_args.clone(), eval_exp); }
+                    Err(_) => return Err("Error during function call\n".to_string()),
+                }
             }
 
             // Evaluate function scope

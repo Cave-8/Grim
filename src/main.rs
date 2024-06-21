@@ -9,7 +9,7 @@ mod language_runner;
 
 fn main()
 {
-    let binding = read_to_string("src/examples/scope.grim").unwrap();
+    let binding = read_to_string("src/examples/script.grim").unwrap();
     let src = binding.as_str();
     let lexer = Lexer::new(src);
     let parser = ProgramParser::new();
