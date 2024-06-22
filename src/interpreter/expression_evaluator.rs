@@ -3,7 +3,7 @@ use std::iter::zip;
 use std::rc::Rc;
 use crate::interpreter::interpreter::{evaluate_ast, Scope, TypeVal};
 use crate::interpreter::interpreter::TypeVal::{Boolean, Float, Int, Str};
-use crate::parsing::ast::{BinaryOperator, Expression, UnaryOperator};
+use crate::parsing::ast::{BinaryOperator, Expression, Statement, UnaryOperator};
 use crate::interpreter::error_reporting::{error_reporting_binary_operator, error_reporting_generic, error_reporting_unary_operator};
 
 /// Function used to evaluate expression.
@@ -42,17 +42,34 @@ pub fn evaluate_expression(scope: &&mut Rc<RefCell<Scope>>, expr: &Box<Expressio
         }
         Expression::Identifier(variable) => {
             let var = scope.borrow().get_variable_value(variable.as_str());
-            Ok(var)
+            match var {
+                Ok(var) => Ok(var),
+                Err(err) => return Err(format! ("Error during identifier reading\n{}\n", err))
+            }
         }
         Expression::FunctionCall { name, arguments } => {
-            let (fun_args, fun_body) = scope.borrow().get_function_info(name);
+            let mut fun_args: Vec<String> = vec![];
+            let mut fun_body: Vec<Statement> = vec![];
+            match scope.borrow().get_function_info(name) {
+                Ok((x, y)) => {
+                    fun_args = x;
+                    fun_body = y;
+                }
+                Err(err) => return Err(format! ("Error during function evaluation\n{}\n", err))
+            }
             let mut fun_scope = Rc::new(RefCell::new(Scope::default()));
-            fun_scope.borrow_mut().insert_function(name, &fun_args, &fun_body);
+            match fun_scope.borrow_mut().insert_function(name, &fun_args, &fun_body) {
+                Ok(_) => (),
+                Err(err) => return Err(format! ("Error during function evaluation\n{}\n", err))
+            }
 
             // Bind each argument with its value
             for (f_args, args) in zip(fun_args, arguments) {
                 match evaluate_expression(scope, args) {
-                    Ok(eval_exp) => { fun_scope.borrow_mut().local_variables.insert(f_args.clone(), eval_exp); }
+                    Ok(eval_exp) => {
+                        fun_scope.borrow_mut().local_variables.insert(f_args.clone(), eval_exp);
+                        fun_scope.borrow_mut().reachable_variables.insert(f_args.clone());
+                    }
                     Err(_) => return Err("Error during function call\n".to_string()),
                 }
             }
@@ -62,10 +79,9 @@ pub fn evaluate_expression(scope: &&mut Rc<RefCell<Scope>>, expr: &Box<Expressio
             // Get result
             let res = evaluated_function.unwrap();
             let borrow_scope = res.borrow();
-            let result = borrow_scope.local_variables.get("return");
-            Ok(result.unwrap().clone())
+            let result = borrow_scope.return_value.clone();
+            Ok(result)
         }
-        _ => error_reporting_generic("Unrecognized expression".to_string()),
     }
 }
 
@@ -82,6 +98,7 @@ pub fn bin_op_evaluator(scope: &&mut Rc<RefCell<Scope>>, lhs: &Box<Expression>, 
             match bin_op_logic_evaluator(scope, lhs, operator, rhs) {
                 Ok(result) => Ok(result),
                 Err(err) => Err(format! {"Error during binary logic expression evaluation\n{}", err})
+                // todo(explicitly state the logical operations)
             }
         }
     }

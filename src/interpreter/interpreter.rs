@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::cmp::PartialEq;
 use std::collections::{HashMap, HashSet};
+use std::fmt::format;
 use std::rc::Rc;
 use colored::{Colorize};
 use crate::interpreter::expression_evaluator::evaluate_expression;
@@ -14,6 +15,12 @@ pub enum TypeVal {
     Float(f64),
     Boolean(bool),
     Str(String),
+}
+
+impl Default for TypeVal {
+    fn default() -> Self {
+        Int(0)
+    }
 }
 
 /// A local scope is composed by two fields:
@@ -30,80 +37,83 @@ pub struct Scope {
     pub local_functions: HashMap<String, (Vec<String>, Vec<Statement>)>,
     pub reachable_variables: HashSet<String>,
     pub reachable_functions: HashSet<String>,
+    pub return_value: TypeVal,
 }
 
 impl Scope {
     /// Insert value for the first time in the scope.
-    pub fn insert_value(&mut self, variable_name: &str, value: &TypeVal) {
+    pub fn insert_value(&mut self, variable_name: &str, value: &TypeVal) -> Result<String, String>{
         if let Some(&ref _value) = self.local_variables.get(variable_name) {
-            panic!("A variable with this name ({}) already exists and it is in scope", variable_name);
+            return Err(format!("A variable with this name ({}) already exists and it is in scope", variable_name));
         } else {
             match value {
                 Int(x) => {
                     if self.reachable_variables.contains(&variable_name.to_string()) {
-                        panic!("You are overshadowing ({})", variable_name)
+                        return Err(format!("You are overshadowing ({})", variable_name))
                     }
                     self.local_variables.insert(variable_name.to_string(), Int(x.clone()));
                     self.reachable_variables.insert(variable_name.to_string());
                 }
                 Float(x) => {
                     if self.reachable_variables.contains(&variable_name.to_string()) {
-                        panic!("You are overshadowing ({})", variable_name)
+                        return Err(format!("You are overshadowing ({})", variable_name))
                     }
                     self.local_variables.insert(variable_name.to_string(), Float(x.clone()));
                     self.reachable_variables.insert(variable_name.to_string());
                 }
                 Boolean(x) => {
                     if self.reachable_variables.contains(&variable_name.to_string()) {
-                        panic!("You are overshadowing ({})", variable_name)
+                        return Err(format!("You are overshadowing ({})", variable_name))
                     }
                     self.local_variables.insert(variable_name.to_string(), Boolean(x.clone()));
                     self.reachable_variables.insert(variable_name.to_string());
                 }
                 Str(x) => {
                     if self.reachable_variables.contains(&variable_name.to_string()) {
-                        panic!("You are overshadowing ({})", variable_name)
+                        return Err(format!("You are overshadowing ({})", variable_name))
                     }
                     self.local_variables.insert(variable_name.to_string(), Str(x.clone()));
                     self.reachable_variables.insert(variable_name.to_string());
                 }
             }
+            return Ok("Correct insertion".to_string())
         }
     }
 
     /// Insert function for the first time in the scope.
-    pub fn insert_function(&mut self, function_name: &str, arguments: &Vec<String>, body: &Vec<Statement>) {
+    pub fn insert_function(&mut self, function_name: &str, arguments: &Vec<String>, body: &Vec<Statement>) -> Result<String, String>{
         if let Some(&ref _value) = self.local_functions.get(function_name) {
-            panic!("A function with this name ({}) already exists and it is in scope", function_name);
+            return Err(format!("A function with this name ({}) already exists and it is in scope", function_name));
         } else {
             self.local_functions.insert(function_name.to_string(), (arguments.clone(), body.clone()));
             self.reachable_functions.insert(function_name.to_string());
+            return Ok("Correct insertion".to_string());
         }
     }
 
     /// Get value of a variable.
     ///
     /// If the variable is found then it is returned, if not a mutable reference to the parent is borrowed and the search recursively goes up.
-    pub fn get_variable_value(&self, variable_name: &str) -> TypeVal {
+    pub fn get_variable_value(&self, variable_name: &str) -> Result<TypeVal, String> {
         if let Some(&ref value) = self.local_variables.get(variable_name) {
-            value.clone()
+            Ok(value.clone())
         } else if let Some(parent) = self.parent.as_ref() {
             parent.borrow_mut().get_variable_value(variable_name)
         } else {
-            panic!("{} does not exist", variable_name);
+            return Err(format!("Variable {} does not exist", variable_name));
         }
     }
 
     /// Get argument list and body of a function.
     ///
     /// If the function is found then it is returned, if not a mutable reference to the parent is borrowed and the search recursively goes up.
-    pub fn get_function_info(&self, variable_name: &str) -> (Vec<String>, Vec<Statement>) {
-        if let Some(&ref value) = self.local_functions.get(variable_name) {
-            value.clone()
+    pub fn get_function_info(&self, function_name: &str) -> Result<(Vec<String>, Vec<Statement>), String> {
+        if let Some(&ref value) = self.local_functions.get(function_name) {
+            Ok(value.clone())
         } else if let Some(parent) = self.parent.as_ref() {
-            parent.borrow_mut().get_function_info(variable_name)
+            parent.borrow_mut().get_function_info(function_name)
         } else {
-            panic!("{} does not exist", variable_name);
+            return Err(format!{"Function {} does not exist", function_name});
         }
     }
 
@@ -148,6 +158,14 @@ impl Scope {
     pub fn set_reachable_functions(&mut self, reachable_functions: HashSet<String>) {
         self.reachable_functions = reachable_functions;
     }
+
+    /// Set return value of current scope
+    pub fn set_return_value(&mut self, return_value: &TypeVal) {
+        self.return_value = return_value.clone();
+        if let Some(parent) = self.parent.as_mut() {
+            parent.borrow_mut().set_return_value(&return_value);
+        }
+    }
 }
 
 /// Start the interpreter
@@ -162,7 +180,12 @@ pub fn evaluate_ast(tree: &Vec<Statement>, scope: &mut Rc<RefCell<Scope>>) -> Re
         match stmt {
             VariableDeclarationStatement { name, value } => {
                 match evaluate_expression(&scope, value) {
-                    Ok(evaluated_expr) => scope.borrow_mut().insert_value(&name, &evaluated_expr),
+                    Ok(evaluated_expr) => {
+                        match scope.borrow_mut().insert_value(&name, &evaluated_expr) {
+                            Ok(_) => (),
+                            Err(err) => return Err(format! {"Error during variable declaration\n{}\n", err}),
+                        }
+                    },
                     Err(err) => return Err(format! {"Error during variable declaration\n{}\n", err}),
                 }
             }
@@ -194,7 +217,7 @@ pub fn evaluate_ast(tree: &Vec<Statement>, scope: &mut Rc<RefCell<Scope>>) -> Re
                         // Execute then_part
                         match evaluate_ast(then_part, &mut new_scope) {
                             Ok(_) => (),
-                            Err(err) => return Err(format! {"Error during if evaluation\n{}\n", err}),
+                            Err(err) => return Err(format! {"Error during if-else evaluation\n{}\n", err}),
                         }
                     }
                     Ok(Int(_)) => return Err("Int cannot be used as if condition".red().to_string()),
@@ -277,16 +300,20 @@ pub fn evaluate_ast(tree: &Vec<Statement>, scope: &mut Rc<RefCell<Scope>>) -> Re
                     }
                 }
             }
+
             FunctionDeclaration { name, parameters, body } => {
-                scope.borrow_mut().insert_function(name, parameters, body);
+                match scope.borrow_mut().insert_function(name, parameters, body) {
+                    Ok(res) => (),
+                    Err(err) => return Err(format! {"Error during function declaration\n{}\n", err}),
+                }
             }
 
             ReturnStatement { value } => {
                 match evaluate_expression(&scope, value) {
-                    Ok(res) => scope.borrow_mut().local_variables.insert("return".to_string(), res),
+                    Ok(res) => scope.borrow_mut().set_return_value(&res),
                     Err(err) => return Err(format! {"Error during return statement\n{}\n", err}),
                 };
-                return Ok(scope.to_owned());
+                break;
             }
 
             PrintStatement{content} => {
@@ -295,7 +322,6 @@ pub fn evaluate_ast(tree: &Vec<Statement>, scope: &mut Rc<RefCell<Scope>>) -> Re
                     Err(x) => return Err(x)
                 }
             }
-            _ => { println!("{:#?}", stmt) }
         }
     }
     return Ok(scope.to_owned());

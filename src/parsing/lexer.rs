@@ -4,7 +4,6 @@ use logos::{Logos, SpannedIter};
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub enum LexicalError {
-    InvalidInteger(ParseIntError),
     #[default]
     InvalidToken,
 }
