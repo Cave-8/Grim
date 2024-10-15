@@ -47,10 +47,10 @@ impl Scope {
     /// Insert value for the first time in the scope.
     pub fn insert_value(&mut self, variable_name: &str, value: &TypeVal) -> Result<String, String> {
         if let Some(&ref _value) = self.local_variables.get(variable_name) {
-            return Err(format!(
+            Err(format!(
                 "A variable with this name ({}) already exists and it is in scope",
                 variable_name
-            ));
+            ))
         } else {
             match value {
                 Int(x) => {
@@ -98,7 +98,7 @@ impl Scope {
                     self.reachable_variables.insert(variable_name.to_string());
                 }
             }
-            return Ok("Correct insertion".to_string());
+            Ok("Correct insertion".to_string())
         }
     }
 
@@ -110,15 +110,15 @@ impl Scope {
         body: &Vec<Statement>,
     ) -> Result<String, String> {
         if let Some(&ref _value) = self.local_functions.get(function_name) {
-            return Err(format!(
+            Err(format!(
                 "A function with this name ({}) already exists and it is in scope",
                 function_name
-            ));
+            ))
         } else {
             self.local_functions
                 .insert(function_name.to_string(), (arguments.clone(), body.clone()));
             self.reachable_functions.insert(function_name.to_string());
-            return Ok("Correct insertion".to_string());
+            Ok("Correct insertion".to_string())
         }
     }
 
@@ -175,7 +175,7 @@ impl Scope {
                 }
             }
         } else if let Some(parent) = self.parent.as_mut() {
-            parent.borrow_mut().update_value(variable_name, &value);
+            parent.borrow_mut().update_value(variable_name, &value)?;
         } else {
             return Err(format!("{} does not exist", variable_name));
         }
@@ -401,7 +401,7 @@ pub fn evaluate_ast(
                 parameters,
                 body,
             } => match scope.borrow_mut().insert_function(name, parameters, body) {
-                Ok(res) => (),
+                Ok(_) => (),
                 Err(err) => return Err(format! {"Error during function declaration\n{}\n", err}),
             },
 
@@ -430,17 +430,29 @@ pub fn evaluate_ast(
                     Ok(_) => (),
                     Err(x) => return Err(format! {"Error during input statement {}", x}),
                 };
-                let mut parsed_input: Box<Expression>;
+                let mut parsed_input = Box::from(Expression::Int(0));
                 // Try to parse as i64
                 match input.trim().parse::<i64>() {
                     Ok(x) => {
                         parsed_input = Box::from(Expression::Int(x));
                         match scope.borrow().local_variables.get(name) {
-                            Some(Int(x)) => { recognized = true },
-                            Some(Float(x)) => return Err(format! ("Error of type incoherence, \"{name}\" is a float")),
-                            Some(Boolean(x)) => return Err(format! ("Error of type incoherence, \"{name}\" is a boolean")),
-                            Some(Str(x)) => return Err(format! ("Error of type incoherence, \"{name}\" is a string")),
-                            _ => return Err(format! ("Input variable {name} does not exist")),
+                            Some(Int(_)) => recognized = true,
+                            Some(Float(_)) => {
+                                return Err(format!(
+                                    "Error of type incoherence, \"{name}\" is a float"
+                                ))
+                            }
+                            Some(Boolean(_)) => {
+                                return Err(format!(
+                                    "Error of type incoherence, \"{name}\" is a boolean"
+                                ))
+                            }
+                            Some(Str(_)) => {
+                                return Err(format!(
+                                    "Error of type incoherence, \"{name}\" is a string"
+                                ))
+                            }
+                            _ => return Err(format!("Input variable {name} does not exist")),
                         };
                     }
                     Err(_) => (),
@@ -448,16 +460,27 @@ pub fn evaluate_ast(
                 // Try to parse as f64
                 match input.trim().parse::<f64>() {
                     Ok(x) => {
-                        if recognized {
-                            break;
-                        }
-                        parsed_input = Box::from(Expression::Float(x));
-                        match scope.borrow().local_variables.get(name) {
-                            Some(Float(x)) => recognized = true,
-                            Some(Int(x)) => return Err(format! ("Error of type incoherence, \"{name}\" is a integer")),
-                            Some(Boolean(x)) => return Err(format! ("Error of type incoherence, \"{name}\" is a boolean")),
-                            Some(Str(x)) => return Err(format! ("Error of type incoherence, \"{name}\" is a string")),
-                            _ => return Err(format! ("Input variable {name} does not exist")),
+                        if !recognized {
+                            parsed_input = Box::from(Expression::Float(x));
+                            match scope.borrow().local_variables.get(name) {
+                                Some(Float(_)) => recognized = true,
+                                Some(Int(_)) => {
+                                    return Err(format!(
+                                        "Error of type incoherence, \"{name}\" is a integer"
+                                    ))
+                                }
+                                Some(Boolean(_)) => {
+                                    return Err(format!(
+                                        "Error of type incoherence, \"{name}\" is a boolean"
+                                    ))
+                                }
+                                Some(Str(_)) => {
+                                    return Err(format!(
+                                        "Error of type incoherence, \"{name}\" is a string"
+                                    ))
+                                }
+                                _ => return Err(format!("Input variable {name} does not exist")),
+                            }
                         }
                     }
                     Err(_) => (),
@@ -465,37 +488,59 @@ pub fn evaluate_ast(
                 // Try to parse as boolean
                 match input.trim().parse::<bool>() {
                     Ok(x) => {
-                        if recognized {
-                            break;
+                        if !recognized {
+                            parsed_input = Box::from(Expression::Bool(x));
+                            match scope.borrow().local_variables.get(name) {
+                                Some(Boolean(_)) => recognized = true,
+                                Some(Int(_)) => {
+                                    return Err(format!(
+                                        "Error of type incoherence, \"{name}\" is a integer"
+                                    ))
+                                }
+                                Some(Float(_)) => {
+                                    return Err(format!(
+                                        "Error of type incoherence, \"{name}\" is a float"
+                                    ))
+                                }
+                                Some(Str(_)) => {
+                                    return Err(format!(
+                                        "Error of type incoherence, \"{name}\" is a string"
+                                    ))
+                                }
+                                _ => return Err(format!("Input variable {name} does not exist")),
+                            };
                         }
-                        parsed_input = Box::from(Expression::Bool(x));
-                        match scope.borrow().local_variables.get(name) {
-                            Some(Boolean(x))=> recognized = true,
-                            Some(Int(x)) => return Err(format! ("Error of type incoherence, \"{name}\" is a integer")),
-                            Some(Float(x)) => return Err(format! ("Error of type incoherence, \"{name}\" is a float")),
-                            Some(Str(x)) => return Err(format! ("Error of type incoherence, \"{name}\" is a string")),
-                            _ => return Err(format! ("Input variable {name} does not exist")),
-                        };
                     }
                     Err(_) => (),
                 };
                 // Otherwise parse as string
                 match input.trim().parse::<String>() {
                     Ok(x) => {
-                        if recognized {
-                            break;
+                        if !recognized {
+                            parsed_input = Box::from(Expression::Str(x));
+                            match scope.borrow().local_variables.get(name) {
+                                Some(Str(_)) => recognized = true,
+                                Some(Int(_)) => {
+                                    return Err(format!(
+                                        "Error of type incoherence, \"{name}\" is a integer"
+                                    ))
+                                }
+                                Some(Float(_)) => {
+                                    return Err(format!(
+                                        "Error of type incoherence, \"{name}\" is a float"
+                                    ))
+                                }
+                                Some(Boolean(_)) => {
+                                    return Err(format!(
+                                        "Error of type incoherence, \"{name}\" is a boolean"
+                                    ))
+                                }
+                                _ => return Err(format!("Input variable {name} does not exist")),
+                            };
                         }
-                        parsed_input = Box::from(Expression::Str(x));
-                        match scope.borrow().local_variables.get(name) {
-                            Some(Str(x)) => recognized = true,
-                            Some(Int(x)) => return Err(format! ("Error of type incoherence, \"{name}\" is a integer")),
-                            Some(Float(x)) => return Err(format! ("Error of type incoherence, \"{name}\" is a float")),
-                            Some(Boolean(x)) => return Err(format! ("Error of type incoherence, \"{name}\" is a boolean")),
-                            _ => return Err(format! ("Input variable {name} does not exist")),
-                        };
                     }
                     Err(_) => return Err("Cannot parse given value".to_string()),
-                }
+                };
                 let evaluated_expr = match evaluate_expression(&scope, &parsed_input) {
                     Ok(x) => x,
                     Err(err) => return Err(format! {"Error during input statement {}", err}),
@@ -509,5 +554,5 @@ pub fn evaluate_ast(
             }
         }
     }
-    return Ok(scope.to_owned());
+    Ok(scope.to_owned())
 }

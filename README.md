@@ -2,6 +2,9 @@
 Project Grim, a small interpreted and imperative language.
 
 # Syntax
+## Identifiers
+An identifier can start with [a-z_] and then can contain any character in [a-zA-Z0-9_].
+
 ## Possible statements
 Below a list of supported statements with their syntax.
 ### Variable declaration
@@ -105,7 +108,7 @@ cargo run -- path_to_grim_script
 You can add features to the language:
 1. Define the tokens into `lexer.rs`,
 2. Define the grammar rules using tokens into `grammar.lalrpop`
-3. Define the interpreter rule into `interpreter.rs`
+3. Define the interpreter rules into `interpreter.rs`
 
 Eventually you may want to add more arithmetical/logic operators, to do so you have to edit `expression_evaluator.rs`.
 

@@ -1,5 +1,5 @@
-let a = 0;
-print("Insert input: ");
+let a = 0.0;
+print("Insert input");
 input(a);
+print("You inserted");
 print(a);
-print("Hello");

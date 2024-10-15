@@ -1,5 +1,4 @@
 use std::fmt;
-use std::num::ParseIntError;
 use logos::{Logos, SpannedIter};
 
 #[derive(Default, Debug, Clone, PartialEq)]

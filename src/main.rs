@@ -11,17 +11,17 @@ mod language_runner;
 
 fn main()
 {
-    let binding = read_to_string("src/examples/input.grim").unwrap();
+    /*let binding = read_to_string("src/examples/input.grim").unwrap();
     let src = binding.as_str();
     let lexer = Lexer::new(src);
     let parser = ProgramParser::new();
     let ast = parser.parse(lexer).unwrap();
     match boot_interpreter(&ast) {
-        Ok(_) => (),//Ok(x) => println!("{:?}", x),
+        Ok(_) => (),
         Err(x) => println!("{}", x),
-    }
+    }*/
 
-    //let args: Vec<String> = env::args().collect();
-    //let source_code = read_to_string(&args[1]).unwrap();
-    //run_program(&source_code);
+    let args: Vec<String> = env::args().collect();
+    let source_code = read_to_string(&args[1]).unwrap();
+    run_program(&source_code);
 }
