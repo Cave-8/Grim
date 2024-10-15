@@ -16,9 +16,9 @@ pub enum Token {
     TokFloat(f64),
     #[regex("[0-9]*", | lex | lex.slice().parse::< i64 > ().unwrap())]
     TokInt(i64),
-    #[regex("[a-z][a-zA-Z0-9]*", | lex | lex.slice().to_owned())]
+    #[regex("[a-z_][a-zA-Z0-9_]*", | lex | lex.slice().to_owned())]
     TokIdentifier(String),
-    #[regex("[\"][a-zA-Z0-9]*[\"]", | lex | lex.slice().to_owned())]
+    #[regex(r#"[\"][a-zA-Z0-9_ .:;,><!?]*[\"]"#, | lex | lex.slice().to_owned())]
     TokString(String),
     #[regex("true|false", | lex | lex.slice().parse::< bool > ().unwrap())]
     TokBool(bool),
@@ -86,6 +86,8 @@ pub enum Token {
     TokReturn,
     #[token("print")]
     TokPrint,
+    #[token("input")]
+    TokInput
 }
 
 impl fmt::Display for Token {

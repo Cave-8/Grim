@@ -16,10 +16,11 @@ pub enum Statement {
     FunctionDeclaration { name: String, parameters: Vec<String>, body: Vec<Statement> },
     ReturnStatement { value: Box<Expression> },
 
-    ////////////////////////////
-    // Interactive statements //
-    ////////////////////////////
+    ////////////////////
+    // I/O statements //
+    ////////////////////
     PrintStatement { content: Box<Expression> },
+    InputStatement { name: String },
 }
 
 /// Range of possible expressions.

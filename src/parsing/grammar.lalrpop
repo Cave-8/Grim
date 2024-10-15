@@ -20,6 +20,7 @@ extern {
     "fn" => Token::TokFn,
     "while" => Token::TokWhile,
     "print" => Token::TokPrint,
+    "input" => Token::TokInput,
     "return" => Token::TokReturn,
     "(" => Token::TokLpar,
     ")" => Token::TokRpar,
@@ -81,6 +82,10 @@ pub Statement: ast::Statement = {
   // Print statement (expression/variable)
   "print" "("<content:Expression>")" ";" => {
      ast::Statement::PrintStatement { content }
+  },
+  // Input statement
+  "input" "(" <name:"identifier"> ")" ";" => {
+     ast::Statement::InputStatement { name }
   },
   // Return statement
   "return" <value:Expression> ";" => {

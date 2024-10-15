@@ -6,6 +6,9 @@ fn fact (n) -> {
         return n * fact(n-1);
     }
 }
-fn fact (n) -> { print(n); }
 
-print(fact(10));
+let i = 0;
+while i < 10 {
+    print(fact(i));
+    i = i + 1;
+}

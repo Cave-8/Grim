@@ -68,6 +68,14 @@ let a = "test";
 print (a);
 print ("Example");
 ```
+
+### Input statement
+To input interactively a value in a variable:
+```
+let a = 0;
+input(a)
+```
+
 ### Function declaration and call
 A function is declared with the following syntax:
 ```
@@ -92,6 +100,14 @@ To run, while in the terminal:
 ```
 cargo run -- path_to_grim_script
 ```
+
+# Customize the language
+You can add features to the language:
+1. Define the tokens into `lexer.rs`,
+2. Define the grammar rules using tokens into `grammar.lalrpop`
+3. Define the interpreter rule into `interpreter.rs`
+
+Eventually you may want to add more arithmetical/logic operators, to do so you have to edit `expression_evaluator.rs`.
 
 # Next steps
 Future features:

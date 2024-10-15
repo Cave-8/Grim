@@ -44,7 +44,7 @@ pub fn evaluate_expression(scope: &&mut Rc<RefCell<Scope>>, expr: &Box<Expressio
             let var = scope.borrow().get_variable_value(variable.as_str());
             match var {
                 Ok(var) => Ok(var),
-                Err(err) => return Err(format! ("Error during identifier reading\n{}\n", err))
+                Err(err) => Err(format! ("Error during identifier reading\n{}\n", err))
             }
         }
         Expression::FunctionCall { name, arguments } => {
@@ -77,7 +77,7 @@ pub fn evaluate_expression(scope: &&mut Rc<RefCell<Scope>>, expr: &Box<Expressio
             // Evaluate function scope
             let evaluated_function = evaluate_ast(&fun_body, &mut fun_scope);
             // Get result
-            let res = evaluated_function.unwrap();
+            let res = evaluated_function?;
             let borrow_scope = res.borrow();
             let result = borrow_scope.return_value.clone();
             Ok(result)
