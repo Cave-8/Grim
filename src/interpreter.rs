@@ -1,3 +1,3 @@
-pub mod interpreter;
-pub mod expression_evaluator;
 mod error_reporting;
+pub mod expression_evaluator;
+pub mod interpreter;

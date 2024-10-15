@@ -1,16 +1,15 @@
-use std::env;
-use std::fs::read_to_string;
-use crate::interpreter::interpreter::{boot_interpreter};
+use crate::interpreter::interpreter::boot_interpreter;
 use crate::language_runner::run_language::run_program;
 use crate::parsing::grammar::ProgramParser;
 use crate::parsing::lexer::Lexer;
+use std::env;
+use std::fs::read_to_string;
 
-mod parsing;
 mod interpreter;
 mod language_runner;
+mod parsing;
 
-fn main()
-{
+fn main() {
     /*let binding = read_to_string("src/examples/input.grim").unwrap();
     let src = binding.as_str();
     let lexer = Lexer::new(src);

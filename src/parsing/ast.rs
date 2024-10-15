@@ -4,23 +4,49 @@ pub enum Statement {
     ///////////////////////////
     // Assignment statements //
     ///////////////////////////
-    VariableDeclarationStatement { name: String, value: Box<Expression> },
-    AssignmentStatement { name: String, value: Box<Expression> },
+    VariableDeclarationStatement {
+        name: String,
+        value: Box<Expression>,
+    },
+    AssignmentStatement {
+        name: String,
+        value: Box<Expression>,
+    },
 
     /////////////////////
     // Flow statements //
     /////////////////////
-    IfStatement { cond: Box<Expression>, then_part: Vec<Statement> },
-    IfElseStatement { cond: Box<Expression>, then_part: Vec<Statement>, else_part: Vec<Statement> },
-    WhileStatement { cond: Box<Expression>, body: Vec<Statement> },
-    FunctionDeclaration { name: String, parameters: Vec<String>, body: Vec<Statement> },
-    ReturnStatement { value: Box<Expression> },
+    IfStatement {
+        cond: Box<Expression>,
+        then_part: Vec<Statement>,
+    },
+    IfElseStatement {
+        cond: Box<Expression>,
+        then_part: Vec<Statement>,
+        else_part: Vec<Statement>,
+    },
+    WhileStatement {
+        cond: Box<Expression>,
+        body: Vec<Statement>,
+    },
+    FunctionDeclaration {
+        name: String,
+        parameters: Vec<String>,
+        body: Vec<Statement>,
+    },
+    ReturnStatement {
+        value: Box<Expression>,
+    },
 
     ////////////////////
     // I/O statements //
     ////////////////////
-    PrintStatement { content: Box<Expression> },
-    InputStatement { name: String },
+    PrintStatement {
+        content: Box<Expression>,
+    },
+    InputStatement {
+        name: String,
+    },
 }
 
 /// Range of possible expressions.

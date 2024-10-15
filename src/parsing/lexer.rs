@@ -1,5 +1,5 @@
-use std::fmt;
 use logos::{Logos, SpannedIter};
+use std::fmt;
 
 #[derive(Default, Debug, Clone, PartialEq)]
 pub enum LexicalError {
@@ -86,7 +86,7 @@ pub enum Token {
     #[token("print")]
     TokPrint,
     #[token("input")]
-    TokInput
+    TokInput,
 }
 
 impl fmt::Display for Token {
@@ -105,7 +105,9 @@ pub struct Lexer<'input> {
 
 impl<'input> Lexer<'input> {
     pub fn new(input: &'input str) -> Self {
-        Self { token_stream: Token::lexer(input).spanned() }
+        Self {
+            token_stream: Token::lexer(input).spanned(),
+        }
     }
 }
 
@@ -121,8 +123,8 @@ impl<'input> Iterator for Lexer<'input> {
 
 #[cfg(test)]
 mod tests {
-    use crate::parsing::lexer::Token;
     use super::*;
+    use crate::parsing::lexer::Token;
 
     #[test]
     fn tokenizer_test_1() {
@@ -130,12 +132,18 @@ mod tests {
         let mut lex = Token::lexer(&src);
 
         assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
-        assert_eq!(lex.next(), Some(Ok(Token::TokIdentifier("test".to_string()))));
+        assert_eq!(
+            lex.next(),
+            Some(Ok(Token::TokIdentifier("test".to_string())))
+        );
         assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
         assert_eq!(lex.next(), Some(Ok(Token::TokInt(120))));
         assert_eq!(lex.next(), Some(Ok(Token::TokSemi)));
         assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
-        assert_eq!(lex.next(), Some(Ok(Token::TokIdentifier("test1".to_string()))));
+        assert_eq!(
+            lex.next(),
+            Some(Ok(Token::TokIdentifier("test1".to_string())))
+        );
         assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
         assert_eq!(lex.next(), Some(Ok(Token::TokInt(0))));
         assert_eq!(lex.next(), Some(Ok(Token::TokSemi)))
@@ -150,7 +158,9 @@ mod tests {
         for res in lex {
             match res {
                 Ok(_) => {}
-                Err(_) => { panic!() }
+                Err(_) => {
+                    panic!()
+                }
             }
         }
     }
@@ -173,12 +183,18 @@ mod tests {
         let mut lex = Token::lexer(&src);
 
         assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
-        assert_eq!(lex.next(), Some(Ok(Token::TokIdentifier("test".to_string()))));
+        assert_eq!(
+            lex.next(),
+            Some(Ok(Token::TokIdentifier("test".to_string())))
+        );
         assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
         assert_eq!(lex.next(), Some(Ok(Token::TokFloat(0.123))));
         assert_eq!(lex.next(), Some(Ok(Token::TokSemi)));
         assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
-        assert_eq!(lex.next(), Some(Ok(Token::TokIdentifier("test1".to_string()))));
+        assert_eq!(
+            lex.next(),
+            Some(Ok(Token::TokIdentifier("test1".to_string())))
+        );
         assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
         assert_eq!(lex.next(), Some(Ok(Token::TokFloat(0.0))));
         assert_eq!(lex.next(), Some(Ok(Token::TokSemi)))
@@ -190,12 +206,18 @@ mod tests {
         let mut lex = Token::lexer(&src);
 
         assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
-        assert_eq!(lex.next(), Some(Ok(Token::TokIdentifier("test".to_string()))));
+        assert_eq!(
+            lex.next(),
+            Some(Ok(Token::TokIdentifier("test".to_string())))
+        );
         assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
         assert_eq!(lex.next(), Some(Ok(Token::TokBool(true))));
         assert_eq!(lex.next(), Some(Ok(Token::TokSemi)));
         assert_eq!(lex.next(), Some(Ok(Token::TokLet)));
-        assert_eq!(lex.next(), Some(Ok(Token::TokIdentifier("test1".to_string()))));
+        assert_eq!(
+            lex.next(),
+            Some(Ok(Token::TokIdentifier("test1".to_string())))
+        );
         assert_eq!(lex.next(), Some(Ok(Token::TokEquals)));
         assert_eq!(lex.next(), Some(Ok(Token::TokBool(false))));
         assert_eq!(lex.next(), Some(Ok(Token::TokSemi)))
