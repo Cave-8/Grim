@@ -1,5 +1,5 @@
 # Grim
-Project Grim, a small interpreted and imperative language.
+Grim, a small interpreted and imperative language.
 
 # Syntax
 ## Identifiers
