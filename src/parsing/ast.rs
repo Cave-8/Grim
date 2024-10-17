@@ -44,6 +44,9 @@ pub enum Statement {
     PrintStatement {
         content: Box<Expression>,
     },
+    PrintLineStatement {
+        content: Box<Expression>,
+    },
     InputStatement {
         name: String,
     },

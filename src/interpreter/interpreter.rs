@@ -2,15 +2,17 @@ use crate::interpreter::expression_evaluator::evaluate_expression;
 use crate::interpreter::interpreter::TypeVal::{Boolean, Float, Int, Str};
 use crate::parsing::ast::Statement::{
     AssignmentStatement, FunctionDeclaration, IfElseStatement, IfStatement, InputStatement,
-    PrintStatement, ReturnStatement, VariableDeclarationStatement, WhileStatement,
+    PrintLineStatement, PrintStatement, ReturnStatement, VariableDeclarationStatement,
+    WhileStatement,
 };
 use crate::parsing::ast::{Expression, Statement};
 use colored::Colorize;
 use std::cell::RefCell;
 use std::cmp::PartialEq;
 use std::collections::{HashMap, HashSet};
-use std::io;
+use std::io::Write;
 use std::rc::Rc;
+use std::{fmt, io};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeVal {
@@ -23,6 +25,17 @@ pub enum TypeVal {
 impl Default for TypeVal {
     fn default() -> Self {
         Int(0)
+    }
+}
+
+impl fmt::Display for TypeVal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Float(x) => write!(f, "{}", x),
+            Int(x) => write!(f, "{}", x),
+            Str(x) => write!(f, "{}", x[1..x.len() - 1].to_string()),
+            Boolean(x) => write!(f, "{}", x),
+        }
     }
 }
 
@@ -414,12 +427,18 @@ pub fn evaluate_ast(
             }
 
             PrintStatement { content } => match evaluate_expression(&scope, content) {
-                Ok(x) => match x {
-                    Int(x) => println!("{}", x),
-                    Float(x) => println!("{}", x),
-                    Str(x) => println!("{}", x),
-                    Boolean(x) => println!("{}", x),
-                },
+                Ok(x) => {
+                    print!("{}", x);
+                    io::stdout().flush().unwrap();
+                }
+                Err(x) => return Err(x),
+            },
+
+            PrintLineStatement { content } => match evaluate_expression(&scope, content) {
+                Ok(x) => {
+                    println!("{}", x);
+                    io::stdout().flush().unwrap();
+                }
                 Err(x) => return Err(x),
             },
 
@@ -466,7 +485,7 @@ pub fn evaluate_ast(
                                 Some(Float(_)) => recognized = true,
                                 Some(Int(_)) => {
                                     return Err(format!(
-                                        "Error of type incoherence, \"{name}\" is a integer"
+                                        "Error of type incoherence, \"{name}\" is an integer"
                                     ))
                                 }
                                 Some(Boolean(_)) => {
@@ -494,7 +513,7 @@ pub fn evaluate_ast(
                                 Some(Boolean(_)) => recognized = true,
                                 Some(Int(_)) => {
                                     return Err(format!(
-                                        "Error of type incoherence, \"{name}\" is a integer"
+                                        "Error of type incoherence, \"{name}\" is an integer"
                                     ))
                                 }
                                 Some(Float(_)) => {
@@ -522,7 +541,7 @@ pub fn evaluate_ast(
                                 Some(Str(_)) => recognized = true,
                                 Some(Int(_)) => {
                                     return Err(format!(
-                                        "Error of type incoherence, \"{name}\" is a integer"
+                                        "Error of type incoherence, \"{name}\" is an integer"
                                     ))
                                 }
                                 Some(Float(_)) => {

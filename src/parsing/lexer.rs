@@ -85,6 +85,8 @@ pub enum Token {
     TokReturn,
     #[token("print")]
     TokPrint,
+    #[token("printl")]
+    TokPrintL,
     #[token("input")]
     TokInput,
 }

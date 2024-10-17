@@ -65,12 +65,13 @@ while a || b {
 ```
 
 ### Print statement
-To print a variable or an expression: <br>
+To print a variable, an expression or a string: <br>
 ```
 let a = "test";
 print (a);
 print ("Example");
 ```
+If you want to go to a new line you can use `printl`.
 
 ### Input statement
 To input interactively a value in a variable:

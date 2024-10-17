@@ -1,6 +1,7 @@
 use crate::interpreter::interpreter::boot_interpreter;
 use crate::parsing::grammar::ProgramParser;
 use crate::parsing::lexer::Lexer;
+use colored::Colorize;
 
 pub fn run_program(src: &String) {
     println!("Hi! \nGrim language interpreter started!\n");
@@ -10,7 +11,10 @@ pub fn run_program(src: &String) {
     let ast = parser.parse(lexer).unwrap();
     let _ = match boot_interpreter(&ast) {
         Ok(_) => (),
-        Err(err) => println!("{}", err),
+        Err(err) => {
+            println!("{}", "ERROR!".red().bold());
+            println!("{}", err);
+        },
     };
 
     println!("\nGoodbye =)");
