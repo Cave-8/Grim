@@ -1,7 +1,0 @@
-let a = 0.0;
-printl("Insert input");
-printl("Test");
-print("> ");
-input(a);
-print("You inserted");
-print(a);

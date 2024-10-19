@@ -1,0 +1,28 @@
+fn collatz (n, iter) -> {
+
+    print("Currently n = ");
+    printl(n);
+
+    if n == 1 {
+            printl("Reached n = 1");
+            print("After ");
+            print(iter);
+            printl(" iterations");
+            return 1;
+    }
+    else {
+        if n % 2 == 0 {
+            return 1 + collatz(n/2, iter + 1, bound);
+        }
+        else {
+            return 1 + collatz(3 * n + 1, iter + 1, bound);
+        }
+    }
+    printl(iter);
+}
+
+let n = 0;
+printl("Please input an integer to start the computation.");
+print("> ");
+input(n);
+collatz(n, 1);

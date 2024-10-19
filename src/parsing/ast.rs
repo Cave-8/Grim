@@ -31,8 +31,12 @@ pub enum Statement {
     },
     FunctionDeclaration {
         name: String,
-        parameters: Vec<String>,
+        arguments: Vec<String>,
         body: Vec<Statement>,
+    },
+    FunctionCallStatement {
+        name: String,
+        arguments: Vec<Box<Expression>>,
     },
     ReturnStatement {
         value: Box<Expression>,

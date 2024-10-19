@@ -1,0 +1,16 @@
+fn fact (n) -> {
+    if n <= 1 {
+        return 1;
+    }
+    else {
+        return n * fact(n-1);
+    }
+}
+
+let i = 0;
+printl("Please, insert a valid integer to compute its factorial");
+print("> ");
+input(i);
+printl("The result is");
+print("> ");
+print(fact(i));

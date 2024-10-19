@@ -72,13 +72,17 @@ pub Statement: ast::Statement = {
   "if" <cond:Expression> "{" <then_part:Statement*> "}" "else" "{" <else_part:Statement*> "}" => {
     ast::Statement::IfElseStatement { cond, then_part, else_part }
   },
-  // If statement
+  // While statement
   "while" <cond:Expression> "{" <body:Statement*> "}" => {
     ast::Statement::WhileStatement { cond, body }
   },
   // Function declaration -> fn dummy (x, y) -> { ... }
-  "fn" <name:"identifier"> "(" <parameters:ParameterList> ")" "->" "{" <body:Statement*> "}" => {
-     ast::Statement::FunctionDeclaration { name, parameters, body }
+  "fn" <name:"identifier"> "(" <arguments:ParameterList> ")" "->" "{" <body:Statement*> "}" => {
+     ast::Statement::FunctionDeclaration { name, arguments, body }
+  },
+  // Function call
+  <name:"identifier"> "(" <arguments:ExpressionList> ")" ";" => {
+    ast::Statement::FunctionCallStatement { name, arguments }
   },
   // Print statement (expression/variable)
   "print" "("<content:Expression>")" ";" => {

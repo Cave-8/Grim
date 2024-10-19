@@ -77,7 +77,7 @@ If you want to go to a new line you can use `printl`.
 To input interactively a value in a variable:
 ```
 let a = 0;
-input(a)
+input(a);
 ```
 
 ### Function declaration and call
@@ -86,11 +86,13 @@ A function is declared with the following syntax:
 fn fun_name (arg1, arg2) -> { return arg1 + arg2; }
 ```
 A function must end with an explicit return. <br>
+Calling a function without assigning the return value means that the value is discarded after call. <br>
 A function can be called simply by:
 ```
 let a = 0;
 let b = 1;
 let c = fun_name(a, b);
+fun_name(a, b);
 ```
 Pass is only by value.
 

@@ -17,7 +17,7 @@ pub enum Token {
     TokInt(i64),
     #[regex("[a-z_][a-zA-Z0-9_]*", | lex | lex.slice().to_owned())]
     TokIdentifier(String),
-    #[regex(r#"[\"][a-zA-Z0-9_ .:;,><!?]*[\"]"#, | lex | lex.slice().to_owned())]
+    #[regex(r#"[\"][a-zA-Z0-9_ .:;,><!?=]*[\"]"#, | lex | lex.slice().to_owned())]
     TokString(String),
     #[regex("true|false", | lex | lex.slice().parse::< bool > ().unwrap())]
     TokBool(bool),

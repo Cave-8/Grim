@@ -12,7 +12,7 @@ pub fn run_program(src: &String) {
     let _ = match boot_interpreter(&ast) {
         Ok(_) => (),
         Err(err) => {
-            println!("{}", "ERROR!".red().bold());
+            println!("{}", "ERROR!".bright_red().bold());
             println!("{}", err);
         },
     };

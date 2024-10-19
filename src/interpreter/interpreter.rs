@@ -1,9 +1,9 @@
 use crate::interpreter::expression_evaluator::evaluate_expression;
 use crate::interpreter::interpreter::TypeVal::{Boolean, Float, Int, Str};
 use crate::parsing::ast::Statement::{
-    AssignmentStatement, FunctionDeclaration, IfElseStatement, IfStatement, InputStatement,
-    PrintLineStatement, PrintStatement, ReturnStatement, VariableDeclarationStatement,
-    WhileStatement,
+    AssignmentStatement, FunctionCallStatement, FunctionDeclaration, IfElseStatement, IfStatement,
+    InputStatement, PrintLineStatement, PrintStatement, ReturnStatement,
+    VariableDeclarationStatement, WhileStatement,
 };
 use crate::parsing::ast::{Expression, Statement};
 use colored::Colorize;
@@ -14,6 +14,7 @@ use std::io::Write;
 use std::rc::Rc;
 use std::{fmt, io};
 
+/// Typeval contains the primitive types available in Grim.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeVal {
     Int(i64),
@@ -54,6 +55,7 @@ pub struct Scope {
     pub reachable_variables: HashSet<String>,
     pub reachable_functions: HashSet<String>,
     pub return_value: TypeVal,
+    pub returning: bool,
 }
 
 impl Scope {
@@ -164,7 +166,7 @@ impl Scope {
         }
     }
 
-    /// Update value of a variable in the scope
+    /// Update value of a variable in the scope.
     ///
     /// If the variable is found then it is updated, if not a mutable reference to the parent is borrowed and the search recursively goes up.
     pub fn update_value(&mut self, variable_name: &str, value: &TypeVal) -> Result<String, String> {
@@ -195,31 +197,41 @@ impl Scope {
         Ok("Correct assignment".to_string())
     }
 
-    /// Set parent of the given scope
+    /// Set parent of the given scope.
     pub fn set_parent(&mut self, parent: Rc<RefCell<Scope>>) {
         self.parent = Some(parent);
     }
 
-    /// Set variable reachable from self scope
+    /// Set variable reachable from self scope.
     pub fn set_reachable_variables(&mut self, reachable_variables: HashSet<String>) {
         self.reachable_variables = reachable_variables;
     }
 
-    /// Set functions reachable from self scope
+    /// Set functions reachable from self scope.
     pub fn set_reachable_functions(&mut self, reachable_functions: HashSet<String>) {
         self.reachable_functions = reachable_functions;
     }
 
-    /// Set return value of current scope
+    /// Set return value of current scope.
     pub fn set_return_value(&mut self, return_value: &TypeVal) {
         self.return_value = return_value.clone();
         if let Some(parent) = self.parent.as_mut() {
             parent.borrow_mut().set_return_value(&return_value);
         }
     }
+
+    /// Set returning property.
+    ///
+    /// The property is set also for the father scope to ensure current.
+    pub fn set_returning(&mut self, returning: bool) {
+        self.returning = returning;
+        if let Some(parent) = self.parent.as_mut() {
+            parent.borrow_mut().set_returning(returning);
+        }
+    }
 }
 
-/// Start the interpreter
+/// Start the interpreter.
 pub fn boot_interpreter(tree: &Vec<Statement>) -> Result<Rc<RefCell<Scope>>, String> {
     let mut main_scope = Rc::new(RefCell::new(Scope::default()));
     evaluate_ast(&tree, &mut main_scope)
@@ -231,12 +243,15 @@ impl PartialEq<TypeVal> for &TypeVal {
     }
 }
 
-/// AST evaluation
+/// AST evaluation.
 pub fn evaluate_ast(
     tree: &Vec<Statement>,
     scope: &mut Rc<RefCell<Scope>>,
 ) -> Result<Rc<RefCell<Scope>>, String> {
     for stmt in tree {
+        if scope.borrow().returning {
+            return Ok(scope.to_owned());
+        }
         match stmt {
             VariableDeclarationStatement { name, value } => {
                 match evaluate_expression(&scope, value) {
@@ -411,14 +426,26 @@ pub fn evaluate_ast(
 
             FunctionDeclaration {
                 name,
-                parameters,
+                arguments,
                 body,
-            } => match scope.borrow_mut().insert_function(name, parameters, body) {
+            } => match scope.borrow_mut().insert_function(name, arguments, body) {
                 Ok(_) => (),
                 Err(err) => return Err(format! {"Error during function declaration\n{}\n", err}),
             },
 
+            FunctionCallStatement { name, arguments } => {
+                let called_function = Box::from(Expression::FunctionCall {
+                    name: name.clone(),
+                    arguments: arguments.clone(),
+                });
+                match evaluate_expression(&scope, &called_function) {
+                    Ok(_) => (),
+                    Err(err) => return Err(format! {"Error during function call\n{}\n", err}),
+                }
+            }
+
             ReturnStatement { value } => {
+                scope.borrow_mut().set_returning(true);
                 match evaluate_expression(&scope, value) {
                     Ok(res) => scope.borrow_mut().set_return_value(&res),
                     Err(err) => return Err(format! {"Error during return statement\n{}\n", err}),
