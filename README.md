@@ -102,6 +102,10 @@ In general the only casting that can happen is int -> float if, for instance, an
 
 # Run the language
 You need Rust and Cargo installed. <br>
+First you will have to build the project with:
+```
+cargo build
+```
 To run, while in the terminal:
 ```
 cargo run -- path_to_grim_script
