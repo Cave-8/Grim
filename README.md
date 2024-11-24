@@ -114,8 +114,8 @@ cargo run -- path_to_grim_script
 # Customize the language
 You can add features to the language:
 1. Define the tokens into `lexer.rs`,
-2. Define the grammar rules using tokens into `grammar.lalrpop`
-3. Define the interpreter rules into `interpreter.rs`
+2. Define the grammar rules (BNF grammar) using tokens into `grammar.lalrpop`,
+3. Define the interpreter rules into `interpreter.rs`.
 
 Eventually you may want to add more arithmetical/logic operators, to do so you have to edit `expression_evaluator.rs`.
 
